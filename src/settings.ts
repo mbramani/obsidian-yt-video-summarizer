@@ -1,7 +1,7 @@
 import { App, Modal, Notice, PluginSettingTab, Setting, TextAreaComponent } from 'obsidian';
-import { DEFAULT_PROMPTS, DEFAULT_SETTINGS, GEMINI_MODELS, GROK_MODELS, LLM_PROVIDERS } from './constants';
+import { DEFAULT_PROMPTS, DEFAULT_SETTINGS, GEMINI_MODELS, GROK_MODELS, LLM_PROVIDERS, VIDEO_ANALYSIS_METHODS } from './constants';
 
-import { GeminiModel, GrokModel, LLMProvider, NamedPrompt } from './types';
+import { GeminiModel, GrokModel, LLMProvider, NamedPrompt, VideoAnalysisMethod } from './types';
 import { YouTubeSummarizerPlugin } from './main';
 
 /**
@@ -221,6 +221,71 @@ export class SettingsTab extends PluginSettingTab {
 							});
 						})
 				);
+		}
+
+		// Video Analysis Settings section
+		containerEl.createEl('h3', { text: 'Video Analysis Settings' });
+		containerEl.createEl('p', { 
+			text: 'These settings control how videos without captions/transcripts are handled.' 
+		});
+
+		// Video Analysis Method setting
+		new Setting(containerEl)
+			.setName('Preferred Analysis Method')
+			.setDesc('Select how to analyze videos when captions are not available')
+			.addDropdown((dropdown) => {
+				dropdown
+					.addOptions({
+						'captions': 'Captions only (traditional)',
+						'metadata': 'Metadata analysis (when no captions)',
+						'multimodal': 'Multimodal analysis (experimental)'
+					})
+					.setValue(this.plugin.settings.videoAnalysisMethod)
+					.onChange(async (value) => {
+						await this.plugin.updateSettings({
+							videoAnalysisMethod: value as VideoAnalysisMethod,
+						});
+						// Redraw to update dependent settings
+						this.display();
+					});
+			});
+
+		// Fallback option
+		new Setting(containerEl)
+			.setName('Fallback to metadata')
+			.setDesc('If the selected analysis method fails, fall back to metadata analysis')
+			.addToggle((toggle) => {
+				toggle
+					.setValue(this.plugin.settings.fallbackToMetadata)
+					.onChange(async (value) => {
+						await this.plugin.updateSettings({
+							fallbackToMetadata: value,
+						});
+					});
+			});
+
+		// Multimodal option (only visible when multimodal is selected)
+		if (this.plugin.settings.videoAnalysisMethod === 'multimodal') {
+			new Setting(containerEl)
+				.setName('Enable multimodal analysis')
+				.setDesc('Send video content directly to AI for analysis (requires Vision-capable models)')
+				.addToggle((toggle) => {
+					toggle
+						.setValue(this.plugin.settings.multimodalEnabled)
+						.onChange(async (value) => {
+							await this.plugin.updateSettings({
+								multimodalEnabled: value,
+							});
+						});
+				});
+
+			// Warning for multimodal
+			const warningEl = containerEl.createEl('div', { 
+				cls: 'setting-item-description',
+				text: 'Note: Multimodal analysis requires Gemini Pro Vision or Grok Vision models, and may incur higher API costs.'
+			});
+			warningEl.style.color = 'orange';
+			warningEl.style.marginLeft = '36px';
 		}
 
 		// Generation Settings section

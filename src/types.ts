@@ -1,4 +1,9 @@
-import { GEMINI_MODELS, GROK_MODELS, LLM_PROVIDERS } from './constants';
+import { GEMINI_MODELS, GROK_MODELS, LLM_PROVIDERS, VIDEO_ANALYSIS_METHODS } from './constants';
+
+/**
+ * List of supported video analysis methods
+ */
+export type VideoAnalysisMethod = typeof VIDEO_ANALYSIS_METHODS[number];
 
 /**
  * List of supported LLM providers
@@ -41,6 +46,9 @@ export interface PluginSettings {
 	temperature: number;
 	savedPrompts: NamedPrompt[];
 	selectedPromptId: string | null;
+	videoAnalysisMethod: VideoAnalysisMethod;
+	fallbackToMetadata: boolean;
+	multimodalEnabled: boolean;
 }
 
 /** Represents a single line of video transcript with timing information */
@@ -58,6 +66,18 @@ export interface TranscriptResponse {
 	author: string;
 	channelUrl: string;
 	lines: TranscriptLine[];
+}
+
+/** Video metadata when captions aren't available */
+export interface VideoMetadata {
+	title: string;
+	description: string;
+	author: string;
+	channelUrl: string;
+	tags: string[];
+	publishDate: string;
+	videoId: string;
+	url: string;
 }
 
 /** Available thumbnail quality options with dimensions */

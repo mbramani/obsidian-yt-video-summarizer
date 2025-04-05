@@ -19,8 +19,8 @@ export class GrokService implements LLMService {
      */
     async summarize(prompt: string): Promise<string> {
         try {
-            // Build the API request URL
-            const apiUrl = "https://api.groq.com/openai/v1/chat/completions";
+            // Build the API request URL - using the correct Grok API endpoint
+            const apiUrl = "https://api.x.ai/v1/chat/completions";
             
             // Configure the request headers and body
             const headers = {
@@ -28,9 +28,58 @@ export class GrokService implements LLMService {
                 "Authorization": `Bearer ${this.settings.grokApiKey}`
             };
             
-            const requestBody = {
-                model: this.settings.selectedGrokModel,
-                messages: [
+            // Check if this is a multimodal request with a video URL
+            const isMultimodalRequest = 
+                this.settings.selectedGrokModel.includes('vision') && 
+                prompt.includes('The video is available at:');
+            
+            let messages;
+            
+            if (isMultimodalRequest) {
+                // Extract the video URL from the prompt
+                const videoUrlMatch = prompt.match(/The video is available at: (https:\/\/[^\s]+)/);
+                const videoUrl = videoUrlMatch ? videoUrlMatch[1] : null;
+                
+                // Remove the video URL line from the prompt for cleaner instruction
+                const cleanPrompt = prompt.replace(/The video is available at: https:\/\/[^\n]+\n?/, '');
+                
+                if (videoUrl) {
+                    // Format as a multimodal message with image content
+                    messages = [
+                        {
+                            role: "system",
+                            content: "You are a helpful assistant that summarizes YouTube videos based on their visual content."
+                        },
+                        {
+                            role: "user",
+                            content: [
+                                { type: "text", text: cleanPrompt },
+                                { 
+                                    type: "image_url", 
+                                    image_url: {
+                                        url: videoUrl,
+                                        detail: "high"
+                                    }
+                                }
+                            ]
+                        }
+                    ];
+                } else {
+                    // Fallback to text-only if URL couldn't be extracted
+                    messages = [
+                        {
+                            role: "system",
+                            content: "You are a helpful assistant that summarizes YouTube videos based on their metadata."
+                        },
+                        {
+                            role: "user",
+                            content: prompt
+                        }
+                    ];
+                }
+            } else {
+                // Standard text-only message format
+                messages = [
                     {
                         role: "system",
                         content: "You are a helpful assistant that summarizes YouTube videos based on transcripts."
@@ -39,8 +88,14 @@ export class GrokService implements LLMService {
                         role: "user",
                         content: prompt
                     }
-                ],
+                ];
+            }
+            
+            const requestBody = {
+                model: this.settings.selectedGrokModel,
+                messages: messages,
                 temperature: this.settings.temperature,
+                stream: false,
                 max_tokens: this.settings.maxTokens
             };
             
@@ -53,8 +108,21 @@ export class GrokService implements LLMService {
             
             // Handle the API response
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(`API returned status ${response.status}: ${errorData.error?.message || 'Unknown error'}`);
+                const errorText = await response.text();
+                let errorMessage = `API returned status ${response.status}`;
+                
+                try {
+                    // Try to parse the error as JSON if possible
+                    const errorData = JSON.parse(errorText);
+                    errorMessage += `: ${errorData.error?.message || errorData.error || 'Unknown error'}`;
+                } catch {
+                    // If not JSON, use the text directly
+                    if (errorText) {
+                        errorMessage += `: ${errorText}`;
+                    }
+                }
+                
+                throw new Error(errorMessage);
             }
             
             // Parse the response

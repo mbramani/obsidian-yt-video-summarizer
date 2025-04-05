@@ -1,5 +1,12 @@
 import { NamedPrompt, PluginSettings } from './types';
 
+// List of supported video analysis methods
+export const VIDEO_ANALYSIS_METHODS = [
+	'captions',
+	'multimodal',
+	'metadata'
+] as const;
+
 // List of supported LLM providers
 export const LLM_PROVIDERS = [
 	'gemini',
@@ -8,20 +15,18 @@ export const LLM_PROVIDERS = [
 
 // List of supported Gemini models
 export const GEMINI_MODELS = [
-	'gemini-2.5-pro-exp-03-25',
-	'gemini-2.0-flash',
-	'gemini-2.0-flash-lite',
-	'gemini-1.5-flash',
-	'gemini-1.5-flash-8b',
+	'gemini-pro',
 	'gemini-1.5-pro',
+	'gemini-1.5-flash',
+	'gemini-1.5-pro-vision'
 ] as const;
 
 // List of supported Grok models
 export const GROK_MODELS = [
-	'grok-2',
-	'grok-1.5-mini',
+	'grok-1',
+	'grok-1.5-pro',
 	'grok-1.5-vision',
-	'grok-1'
+	'grok-2-latest'
 ] as const;
 
 // Default prompt for video analysis
@@ -116,7 +121,10 @@ export const DEFAULT_SETTINGS: PluginSettings = {
 	maxTokens: 3000,
 	temperature: 1,
 	savedPrompts: DEFAULT_PROMPTS,
-	selectedPromptId: 'default'
+	selectedPromptId: 'default',
+	videoAnalysisMethod: 'captions',
+	fallbackToMetadata: true,
+	multimodalEnabled: false
 };
 
 // Regex pattern for extracting video title from meta tag

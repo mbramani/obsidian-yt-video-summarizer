@@ -1,11 +1,12 @@
 import { Editor, MarkdownView, Notice, Plugin } from 'obsidian';
-import { PluginSettings, TranscriptResponse } from './types';
+import { PluginSettings, TranscriptResponse, VideoMetadata } from './types';
 
 import { GeminiService } from './services/gemini';
 import { GrokService } from './services/grok';
 import { LLMService } from './services/llm-service';
 import { SettingsTab } from './settings';
 import { StorageService } from './services/storage';
+import { VideoAnalysisService } from './services/video-analysis';
 import { YouTubeService } from './services/youtube';
 import { YouTubeURLModal } from './modals/youtube-url';
 import { PromptService } from './services/prompt';
@@ -21,6 +22,7 @@ export class YouTubeSummarizerPlugin extends Plugin {
 	private youtubeService: YouTubeService;
 	private promptService: PromptService;
 	private llmService: LLMService;
+	private videoAnalysisService: VideoAnalysisService;
 	private isProcessing = false;
 
 	/**
@@ -67,6 +69,12 @@ export class YouTubeSummarizerPlugin extends Plugin {
 
 		// Initialize LLM service based on selected provider
 		this.initializeLLMService();
+		
+		// Initialize video analysis service
+		this.videoAnalysisService = new VideoAnalysisService(
+			this.settings,
+			this.llmService
+		);
 	}
 
 	/**
@@ -158,12 +166,55 @@ export class YouTubeSummarizerPlugin extends Plugin {
 		// Reinitialize the LLM service
 		this.initializeLLMService();
 		
+		// Update the video analysis service
+		this.videoAnalysisService = new VideoAnalysisService(
+			this.settings,
+			this.llmService
+		);
+		
 		// Update the existing prompt service with new configuration
 		this.promptService.updatePromptConfiguration(
 			this.settings.customPrompt,
 			this.settings.savedPrompts,
 			this.settings.selectedPromptId
 		);
+	}
+
+	/**
+	 * Handles video analysis when captions aren't available
+	 * @param url - The URL of the YouTube video to analyze
+	 * @returns Promise containing the summary text
+	 */
+	private async handleVideosWithoutCaptions(url: string): Promise<{summary: string, metadata: VideoMetadata}> {
+		// Extract metadata from the video
+		new Notice('No captions available, analyzing video using alternative methods...');
+		const metadata = await this.youtubeService.fetchVideoMetadata(url);
+		
+		let summary: string;
+		
+		// Choose analysis method based on settings
+		if (this.settings.videoAnalysisMethod === 'multimodal' && this.settings.multimodalEnabled) {
+			// Use multimodal analysis if enabled in settings
+			try {
+				new Notice('Analyzing video using multimodal AI...');
+				const videoUrl = this.youtubeService.getVideoContentUrl(metadata.videoId);
+				summary = await this.videoAnalysisService.generateMultimodalSummary(videoUrl, metadata);
+			} catch (error) {
+				// Fall back to metadata analysis if multimodal fails
+				if (this.settings.fallbackToMetadata) {
+					new Notice('Multimodal analysis failed, falling back to metadata analysis...');
+					summary = await this.videoAnalysisService.generateMetadataSummary(metadata);
+				} else {
+					throw new Error(`Multimodal analysis failed: ${error.message}`);
+				}
+			}
+		} else {
+			// Use metadata analysis
+			new Notice('Analyzing video using metadata...');
+			summary = await this.videoAnalysisService.generateMetadataSummary(metadata);
+		}
+		
+		return { summary, metadata };
 	}
 
 	/**
@@ -191,27 +242,47 @@ export class YouTubeSummarizerPlugin extends Plugin {
 				return;
 			}
 
-			// Fetch the video transcript
-			new Notice('Fetching video transcript...');
+			// Fetch the video transcript or metadata
+			new Notice('Fetching video information...');
 			const transcript = await this.youtubeService.fetchTranscript(url);
-			const thumbnailUrl = YouTubeService.getThumbnailUrl(
-				transcript.videoId
-			);
-
-			// Build the prompt for LLM
-			const prompt = this.promptService.buildPrompt(transcript.lines.map((line) => line.text).join(' '));
 			
-			// Generate the summary using the selected LLM service
-			new Notice(`Generating summary using ${this.settings.llmProvider.charAt(0).toUpperCase() + this.settings.llmProvider.slice(1)}...`);
-			const summary = await this.llmService.summarize(prompt);
-
-			// Create the summary content
-			const formattedSummary = this.generateSummary(
-				transcript,
-				thumbnailUrl,
-				url,
-				summary
-			);
+			let summaryText: string;
+			let formattedSummary: string;
+			
+			// Check if captions are available
+			if (transcript.lines.length > 0) {
+				// Captions are available, use traditional method
+				const thumbnailUrl = YouTubeService.getThumbnailUrl(transcript.videoId);
+				
+				// Build the prompt for LLM
+				const prompt = this.promptService.buildPrompt(transcript.lines.map((line) => line.text).join(' '));
+				
+				// Generate the summary using the selected LLM service
+				new Notice(`Generating summary using ${this.settings.llmProvider.charAt(0).toUpperCase() + this.settings.llmProvider.slice(1)}...`);
+				summaryText = await this.llmService.summarize(prompt);
+				
+				// Create the summary content
+				formattedSummary = this.generateSummary(
+					transcript,
+					thumbnailUrl,
+					url,
+					summaryText
+				);
+			} else {
+				// No captions available, use alternative methods
+				const { summary, metadata } = await this.handleVideosWithoutCaptions(url);
+				summaryText = summary;
+				
+				// Get thumbnail URL
+				const thumbnailUrl = YouTubeService.getThumbnailUrl(metadata.videoId);
+				
+				// Create the summary content using metadata
+				formattedSummary = this.generateMetadataSummary(
+					metadata,
+					thumbnailUrl,
+					summaryText
+				);
+			}
 
 			// Insert the summary into the markdown view
 			editor.replaceSelection(formattedSummary);
@@ -225,12 +296,12 @@ export class YouTubeSummarizerPlugin extends Plugin {
 	}
 
 	/**
-	 * Generates a summary string based on the provided transcript, thumbnail URL, video URL, and Gemini summary.
+	 * Generates a summary string based on the provided transcript, thumbnail URL, video URL, and summary text.
 	 *
 	 * @param transcript - The transcript response containing the title and author.
 	 * @param thumbnailUrl - The URL of the thumbnail image.
 	 * @param url - The URL of the video.
-	 * @param summaryText - The Gemini response containing the summary, key points, technical terms, and conclusion.
+	 * @param summaryText - The LLM response containing the summary.
 	 * @returns A formatted summary string.
 	 */
 	private generateSummary(
@@ -244,6 +315,32 @@ export class YouTubeSummarizerPlugin extends Plugin {
 			`# ${transcript.title}\n`,
 			`![Thumbnail](${thumbnailUrl})\n`,
 			`👤 [${transcript.author}](${transcript.channelUrl})  🔗 [Watch video](${url})`,
+			summaryText,
+		];
+
+		return summaryParts.join('\n');
+	}
+	
+	/**
+	 * Generates a summary string based on video metadata when captions aren't available
+	 *
+	 * @param metadata - The video metadata
+	 * @param thumbnailUrl - The URL of the thumbnail image
+	 * @param summaryText - The LLM response containing the summary
+	 * @returns A formatted summary string
+	 */
+	private generateMetadataSummary(
+		metadata: VideoMetadata,
+		thumbnailUrl: string,
+		summaryText: string
+	): string {
+		// Initialize summary parts
+		const summaryParts = [
+			`# ${metadata.title}\n`,
+			`![Thumbnail](${thumbnailUrl})\n`,
+			`👤 [${metadata.author}](${metadata.channelUrl})  🔗 [Watch video](${metadata.url})`,
+			// Add a note that this summary is based on metadata, not captions
+			`> **Note:** This summary was generated without captions. It's based on video metadata and AI analysis.\n`,
 			summaryText,
 		];
 

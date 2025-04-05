@@ -8,8 +8,10 @@ import {
 	ThumbnailQuality,
 	TranscriptLine,
 	TranscriptResponse,
+	VideoMetadata,
 } from 'src/types';
 
+import { Notice } from 'obsidian';
 import { parse } from 'node-html-parser';
 import { request } from 'obsidian';
 
@@ -82,26 +84,114 @@ export class YouTubeService {
 				videoPageBody,
 				CHANNEL_ID_REGEX
 			);
-			const captions = await this.extractCaptions(
-				videoPageBody,
-				langCode
-			);
-
-			const response = {
-				url,
-				videoId,
-				title: this.decodeHTML(title || 'Unknown'),
-				author: this.decodeHTML(author || 'Unknown'),
-				channelUrl: channelId
-					? `https://www.youtube.com/channel/${channelId}`
-					: '',
-				lines: this.parseCaptions(captions),
-			};
-
-			return response;
+			
+			try {
+				const captions = await this.extractCaptions(
+					videoPageBody,
+					langCode
+				);
+				
+				const response = {
+					url,
+					videoId,
+					title: this.decodeHTML(title || 'Unknown'),
+					author: this.decodeHTML(author || 'Unknown'),
+					channelUrl: channelId
+						? `https://www.youtube.com/channel/${channelId}`
+						: '',
+					lines: this.parseCaptions(captions),
+				};
+	
+				return response;
+			} catch (captionError) {
+				// If captions are not available, create a minimal transcript response
+				// with empty lines array, so the calling code can handle appropriately
+				return {
+					url,
+					videoId,
+					title: this.decodeHTML(title || 'Unknown'),
+					author: this.decodeHTML(author || 'Unknown'),
+					channelUrl: channelId
+						? `https://www.youtube.com/channel/${channelId}`
+						: '',
+					lines: [],
+				};
+			}
 		} catch (error) {
 			throw new Error(`Failed to fetch transcript: ${error.message}`);
 		}
+	}
+
+	/**
+	 * Fetches detailed metadata for a YouTube video
+	 * @param url - Full YouTube video URL
+	 * @returns Promise containing video metadata
+	 * @throws Error if metadata cannot be fetched or processed
+	 */
+	async fetchVideoMetadata(url: string): Promise<VideoMetadata> {
+		try {
+			// Extract video ID from URL
+			const videoId = this.extractMatch(url, VIDEO_ID_REGEX);
+			if (!videoId) throw new Error('Invalid YouTube URL');
+
+			// Fetch the video page content
+			const videoPageBody = await request(url);
+			
+			// Extract basic metadata from page content
+			const title = this.extractMatch(videoPageBody, TITLE_REGEX);
+			const author = this.extractMatch(videoPageBody, AUTHOR_REGEX);
+			const channelId = this.extractMatch(videoPageBody, CHANNEL_ID_REGEX);
+			
+			// Find the script containing player data to extract more metadata
+			const parsedBody = parse(videoPageBody);
+			const playerScript = parsedBody
+				.getElementsByTagName('script')
+				.find((script) =>
+					script.textContent.includes('var ytInitialPlayerResponse = {')
+				);
+
+			if (!playerScript) throw new Error('Failed to find player data');
+
+			// Extract player response data from script content
+			const start =
+				playerScript.textContent.indexOf('var ytInitialPlayerResponse = ') +
+				30;
+			const end = playerScript.textContent.indexOf('};', start) + 1;
+			const dataString = playerScript.textContent.slice(start, end);
+			const data = JSON.parse(dataString);
+			
+			// Extract additional metadata from player data
+			const videoDetails = data?.videoDetails || {};
+			const description = videoDetails.shortDescription || '';
+			const tags = videoDetails.keywords || [];
+			const publishDate = data?.microformat?.playerMicroformatRenderer?.publishDate || '';
+			
+			return {
+				title: this.decodeHTML(title || videoDetails.title || 'Unknown'),
+				description: this.decodeHTML(description),
+				author: this.decodeHTML(author || videoDetails.author || 'Unknown'),
+				channelUrl: channelId
+					? `https://www.youtube.com/channel/${channelId}`
+					: '',
+				tags,
+				publishDate,
+				videoId,
+				url
+			};
+		} catch (error) {
+			throw new Error(`Failed to fetch video metadata: ${error.message}`);
+		}
+	}
+
+	/**
+	 * Gets direct video URL for multimodal AI processing
+	 * This method provides a URL that can be used to fetch the video content
+	 * @param videoId - The YouTube video ID
+	 * @returns URL that can be used to access the video content
+	 */
+	getVideoContentUrl(videoId: string): string {
+		// Return the embed URL which can be used for multimodal AI processing
+		return `https://www.youtube.com/embed/${videoId}`;
 	}
 
 	/**
