@@ -8,12 +8,14 @@ Generate AI-powered summaries of YouTube videos directly in Obsidian using Googl
 ## Features
 
 -   🎥 Extract transcripts from YouTube videos
+-   🧠 Analyze videos even without captions via metadata or multimodal AI
 -   🤖 Generate summaries using either Gemini AI or Grok
 -   📝 Create structured notes with key points
 -   🔍 Identify and explain technical terms
 -   📊 Format summaries with metadata and tags
 -   💾 Save and manage multiple prompt templates
 -   🔄 Easily switch between different AI providers
+-   👁️ Utilize vision-capable AI models for direct video analysis
 
 ## Installation
 
@@ -37,6 +39,24 @@ Generate AI-powered summaries of YouTube videos directly in Obsidian using Googl
 4. Select your preferred model
 5. Customize summary prompts or use the provided templates
 6. Adjust generation settings (max tokens, temperature)
+
+### Video Analysis Settings
+
+This plugin now offers multiple ways to analyze YouTube videos:
+
+- **Caption Analysis**: The traditional method using video captions/transcripts
+- **Metadata Analysis**: For videos without captions, extracts and analyzes video metadata
+- **Multimodal Analysis**: Uses vision-capable AI models to directly analyze video content
+
+You can configure how videos without captions are handled:
+
+1. Open plugin settings
+2. Go to "Video Analysis Settings"
+3. Choose your preferred analysis method
+4. Enable or disable fallback to metadata analysis
+5. For multimodal analysis, ensure you're using a vision-capable model:
+   - For Gemini: Use `gemini-1.5-pro-vision`
+   - For Grok: Use `grok-1.5-vision` or `grok-2-latest`
 
 ### Managing Prompt Templates
 
@@ -86,6 +106,29 @@ This plugin allows you to create and manage multiple prompt templates:
 ## Conclusion
 
 [Summary conclusion]
+```
+
+## Output for Videos Without Captions
+
+When summarizing videos without captions, the plugin will:
+
+1. Notify you that captions aren't available
+2. Use your preferred analysis method (metadata or multimodal)
+3. Generate a summary with a note indicating it was created without captions
+
+Example:
+```markdown
+# Video Title
+
+[Video thumbnail]
+
+> **Note:** This summary was generated without captions. It's based on video metadata and AI analysis.
+
+## Summary
+
+[AI-generated summary based on metadata or visual content]
+
+...
 ```
 
 ## License
