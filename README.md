@@ -1,18 +1,19 @@
 # YouTube Video Summarizer for Obsidian
 
-Generate AI-powered summaries of YouTube videos directly in Obsidian using Google's Gemini AI.
+Generate AI-powered summaries of YouTube videos directly in Obsidian using Google's Gemini AI or Grok.
 
-## Demo
+## Inspired by the plugin from @mbramani
 
-![Demo](assets/demo.gif)
 
 ## Features
 
 -   🎥 Extract transcripts from YouTube videos
--   🤖 Generate summaries using Gemini AI
+-   🤖 Generate summaries using either Gemini AI or Grok
 -   📝 Create structured notes with key points
 -   🔍 Identify and explain technical terms
 -   📊 Format summaries with metadata and tags
+-   💾 Save and manage multiple prompt templates
+-   🔄 Easily switch between different AI providers
 
 ## Installation
 
@@ -24,14 +25,27 @@ Generate AI-powered summaries of YouTube videos directly in Obsidian using Googl
 ## Requirements
 
 -   Obsidian v0.15.0+
--   Google Gemini API key ([Get one here](https://aistudio.google.com/app/apikey))
+-   Either:
+    -   Google Gemini API key ([Get one here](https://aistudio.google.com/app/apikey))
+    -   Grok API key ([Get one here](https://www.grok.com/))
 
 ## Configuration
 
 1. Open plugin settings
-2. Enter your Gemini API key
-3. Select preferred model
-4. Customize summary prompt (optional)
+2. Choose your preferred AI provider (Gemini or Grok)
+3. Enter the appropriate API key
+4. Select your preferred model
+5. Customize summary prompts or use the provided templates
+6. Adjust generation settings (max tokens, temperature)
+
+### Managing Prompt Templates
+
+This plugin allows you to create and manage multiple prompt templates:
+
+- **Add New Prompts**: Create custom templates for different summarization styles
+- **Select Prompts**: Quickly switch between templates in settings
+- **Edit & Delete**: Manage your saved templates
+- **Default Templates**: Use the built-in templates or reset to defaults
 
 ## Usage
 
@@ -48,7 +62,7 @@ Generate AI-powered summaries of YouTube videos directly in Obsidian using Googl
 2. Select the URL
 3. Use command palette or context menu to summarize
 
-## Output Format
+## Sample of the Default Output Format
 
 ```markdown
 # Video Title
