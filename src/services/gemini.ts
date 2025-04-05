@@ -1,12 +1,13 @@
 import { PluginSettings } from 'src/types';
 import { GenerativeModel, GoogleGenerativeAI } from '@google/generative-ai';
+import { LLMService } from './llm-service';
 
 /**
  * Service for interacting with Gemini AI.
  * This class provides methods for summarizing video transcripts using Gemini AI.
  * It utilizes the GoogleGenerativeAI library to interact with the Gemini API.
  */
-export class GeminiService {
+export class GeminiService implements LLMService {
 	private model: GenerativeModel;
 
 	/**
@@ -19,7 +20,7 @@ export class GeminiService {
 
 		// Create the generative model instance
 		this.model = genAI.getGenerativeModel({
-			model: settings.selectedModel,
+			model: settings.selectedGeminiModel,
 			generationConfig: {
 				maxOutputTokens: settings.maxTokens,
 				temperature: settings.temperature,
@@ -41,7 +42,7 @@ export class GeminiService {
 			// Parse the response
 			return response.text();
 		} catch (error) {
-			throw new Error(`Gemini API error: ${error.message}`);
+			throw new Error(`Gemini API error: ${error instanceof Error ? error.message : String(error)}`);
 		}
 	}
 }

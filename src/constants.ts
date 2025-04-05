@@ -1,4 +1,10 @@
-import { PluginSettings } from './types';
+import { NamedPrompt, PluginSettings } from './types';
+
+// List of supported LLM providers
+export const LLM_PROVIDERS = [
+	'gemini',
+	'grok'
+] as const;
 
 // List of supported Gemini models
 export const GEMINI_MODELS = [
@@ -8,6 +14,14 @@ export const GEMINI_MODELS = [
 	'gemini-1.5-flash',
 	'gemini-1.5-flash-8b',
 	'gemini-1.5-pro',
+] as const;
+
+// List of supported Grok models
+export const GROK_MODELS = [
+	'grok-2',
+	'grok-1.5-mini',
+	'grok-1.5-vision',
+	'grok-1'
 ] as const;
 
 // Default prompt for video analysis
@@ -45,13 +59,64 @@ Create a concise yet comprehensive summary of the video based on the provided su
 
 Note: Include all sections. If there are no technical terms, omit that section entirely.`;
 
+// Alternative default prompts
+export const DEFAULT_PROMPTS: NamedPrompt[] = [
+	{
+		id: 'default',
+		name: 'Default Summary',
+		promptText: DEFAULT_PROMPT
+	},
+	{
+		id: 'concise',
+		name: 'Concise Summary',
+		promptText: `Create a very brief summary of this YouTube video based on the subtitles provided. 
+Focus only on the core message and most important points.
+
+Output format:
+## Summary
+[A 2-3 sentence overview]
+
+## Key Takeaways
+- [First key point]
+- [Second key point]
+- [Third key point]`
+	},
+	{
+		id: 'tutorial',
+		name: 'Tutorial Style',
+		promptText: `Summarize this tutorial video based on the subtitles provided.
+
+Output format:
+## Tutorial Summary
+[Overview of what is taught]
+
+## Step-by-step guide
+1. [First step]
+2. [Second step]
+3. [Continue with all main steps...]
+
+## Tools & Resources Mentioned
+- [Tool/Resource 1]
+- [Tool/Resource 2]
+
+## Tips & Best Practices
+- [Tip 1]
+- [Tip 2]`
+	}
+];
+
 // Default settings for the plugin
 export const DEFAULT_SETTINGS: PluginSettings = {
+	llmProvider: 'gemini',
 	geminiApiKey: '',
-	selectedModel: GEMINI_MODELS[1],
+	grokApiKey: '',
+	selectedGeminiModel: GEMINI_MODELS[1],
+	selectedGrokModel: GROK_MODELS[0],
 	customPrompt: DEFAULT_PROMPT,
 	maxTokens: 3000,
 	temperature: 1,
+	savedPrompts: DEFAULT_PROMPTS,
+	selectedPromptId: 'default'
 };
 
 // Regex pattern for extracting video title from meta tag

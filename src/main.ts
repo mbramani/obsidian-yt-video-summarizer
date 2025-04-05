@@ -2,6 +2,8 @@ import { Editor, MarkdownView, Notice, Plugin } from 'obsidian';
 import { PluginSettings, TranscriptResponse } from './types';
 
 import { GeminiService } from './services/gemini';
+import { GrokService } from './services/grok';
+import { LLMService } from './services/llm-service';
 import { SettingsTab } from './settings';
 import { StorageService } from './services/storage';
 import { YouTubeService } from './services/youtube';
@@ -18,7 +20,7 @@ export class YouTubeSummarizerPlugin extends Plugin {
 	private storageService: StorageService;
 	private youtubeService: YouTubeService;
 	private promptService: PromptService;
-	private geminiService: GeminiService;
+	private llmService: LLMService;
 	private isProcessing = false;
 
 	/**
@@ -57,10 +59,31 @@ export class YouTubeSummarizerPlugin extends Plugin {
 		this.settings = await this.storageService.getSettings();
 		
 		// Initialize prompt service
-		this.promptService = new PromptService(this.settings.customPrompt);
+		this.promptService = new PromptService(
+			this.settings.customPrompt,
+			this.settings.savedPrompts,
+			this.settings.selectedPromptId
+		);
 
-		// Initialize gemini service
-		this.geminiService = new GeminiService(this.settings);
+		// Initialize LLM service based on selected provider
+		this.initializeLLMService();
+	}
+
+	/**
+	 * Initializes the appropriate LLM service based on the selected provider
+	 */
+	private initializeLLMService(): void {
+		switch (this.settings.llmProvider) {
+			case 'gemini':
+				this.llmService = new GeminiService(this.settings);
+				break;
+			case 'grok':
+				this.llmService = new GrokService(this.settings);
+				break;
+			default:
+				// Default to Gemini if provider is unknown
+				this.llmService = new GeminiService(this.settings);
+		}
 	}
 
 	/**
@@ -123,7 +146,7 @@ export class YouTubeSummarizerPlugin extends Plugin {
 
 	/**
 	 * Updates the plugin settings.
-	 * This method updates the settings in the storage service and reinitializes the Gemini service.
+	 * This method updates the settings in the storage service and reinitializes the LLM service.
 	 * @param settings The new settings to be applied.
 	 * @returns {Promise<void>} A promise that resolves when the settings are updated.
 	 */
@@ -132,9 +155,15 @@ export class YouTubeSummarizerPlugin extends Plugin {
 		await this.storageService.updateSettings(settings);
 		this.settings = await this.storageService.getSettings();
 
-		// Reinitializes the Gemini service
-		this.geminiService = new GeminiService(this.settings);
-		this.promptService = new PromptService(this.settings.customPrompt);
+		// Reinitialize the LLM service
+		this.initializeLLMService();
+		
+		// Update the existing prompt service with new configuration
+		this.promptService.updatePromptConfiguration(
+			this.settings.customPrompt,
+			this.settings.savedPrompts,
+			this.settings.selectedPromptId
+		);
 	}
 
 	/**
@@ -152,11 +181,13 @@ export class YouTubeSummarizerPlugin extends Plugin {
 
 		try {
 			this.isProcessing = true;
-			// Ensure the Gemini API key is set
-			if (!this.settings.geminiApiKey) {
-				new Notice(
-					'Gemini API key is missing. Please set it in the plugin settings.'
-				);
+			
+			// Ensure the appropriate API key is set
+			if (this.settings.llmProvider === 'gemini' && !this.settings.geminiApiKey) {
+				new Notice('Gemini API key is missing. Please set it in the plugin settings.');
+				return;
+			} else if (this.settings.llmProvider === 'grok' && !this.settings.grokApiKey) {
+				new Notice('Grok API key is missing. Please set it in the plugin settings.');
 				return;
 			}
 
@@ -167,22 +198,23 @@ export class YouTubeSummarizerPlugin extends Plugin {
 				transcript.videoId
 			);
 
-			//Build the prompt for LLM
+			// Build the prompt for LLM
 			const prompt = this.promptService.buildPrompt(transcript.lines.map((line) => line.text).join(' '));
-			// Generate the summary using Gemini service
-			new Notice('Generating summary...');
-			const geminiSummary = await this.geminiService.summarize(prompt);
+			
+			// Generate the summary using the selected LLM service
+			new Notice(`Generating summary using ${this.settings.llmProvider.charAt(0).toUpperCase() + this.settings.llmProvider.slice(1)}...`);
+			const summary = await this.llmService.summarize(prompt);
 
 			// Create the summary content
-			const summary = this.generateSummary(
+			const formattedSummary = this.generateSummary(
 				transcript,
 				thumbnailUrl,
 				url,
-				geminiSummary
+				summary
 			);
 
 			// Insert the summary into the markdown view
-			editor.replaceSelection(summary);
+			editor.replaceSelection(formattedSummary);
 			new Notice('Summary generated successfully!');
 		} catch (error) {
 			new Notice(`Error: ${error.message}`);
