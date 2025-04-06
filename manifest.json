@@ -1,10 +1,10 @@
 {
-	"id": "DND_Group_YT",
-	"name": "DND_Group_YT",
+	"id": "yt-video-summarizer",
+	"name": "YouTube Video Summarizer",
 	"minAppVersion": "0.15.0",
-	"version": "0.0.2",
-	"description": "Inspired by mbramani plugin. This plugin allows transform Youtube video to markdown file. It will create a new note with the title of the video and the content of the video in markdown format. The plugin will also add a link to the original video in the note. This plugin can work with ",
-	"author": "onishidato",
-	"authorUrl": "https://github.com/Onishidato",
+	"version": "1.1.3",
+	"description": "Summarize YouTube videos using Gemini AI. Extract transcripts, generate summaries, and create structured notes.",
+	"author": "mbramani",
+	"authorUrl": "https://github.com/mbramani",
 	"isDesktopOnly": false
 }
