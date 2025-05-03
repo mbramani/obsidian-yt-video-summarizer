@@ -1,5 +1,3 @@
-import { PluginSettings } from 'src/types';
-
 /**
  * Service for handling AI prompts.
  * This class provides methods for building prompts for AI models.
