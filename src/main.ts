@@ -1,12 +1,13 @@
 import { Editor, MarkdownView, Notice, Plugin } from 'obsidian';
 import { PluginSettings, TranscriptResponse } from './types';
 
-import { GeminiService } from './services/gemini';
-import { SettingsTab } from './settings';
-import { StorageService } from './services/storage';
+import { SettingsTab } from './ui/settings';
 import { YouTubeService } from './services/youtube';
-import { YouTubeURLModal } from './modals/youtube-url';
+import { YouTubeURLModal } from './ui/modals/youtube-url';
 import { PromptService } from './services/prompt';
+import { SettingsManager } from './services/settingsManager';
+import { ProvidersFactory } from './services/providers/providersFactory';
+import { AIModelProvider } from './types';
 
 /**
  * Represents the YouTube Summarizer Plugin.
@@ -15,10 +16,9 @@ import { PromptService } from './services/prompt';
  */
 export class YouTubeSummarizerPlugin extends Plugin {
 	settings: PluginSettings;
-	private storageService: StorageService;
 	private youtubeService: YouTubeService;
 	private promptService: PromptService;
-	private geminiService: GeminiService;
+	private provider: AIModelProvider | null = null;
 	private isProcessing = false;
 
 	/**
@@ -45,22 +45,21 @@ export class YouTubeSummarizerPlugin extends Plugin {
 	 * @returns {Promise<void>} A promise that resolves when the services are initialized.
 	 * @throws {Error} Throws an error if the services cannot be initialized.
 	 */
-	private async initializeServices(): Promise<void> {
-		// Initialize storage service
-		this.storageService = new StorageService(this);
-		await this.storageService.loadData();
-
+	public async initializeServices(): Promise<void> {
+		// Initialize settings manager
+		this.settings = new SettingsManager(this);
+		await this.settings.loadSettings();
 		// Initialize youtube service
 		this.youtubeService = new YouTubeService();
-	
-		// Load settings
-		this.settings = await this.storageService.getSettings();
-		
-		// Initialize prompt service
-		this.promptService = new PromptService(this.settings.customPrompt);
 
-		// Initialize gemini service
-		this.geminiService = new GeminiService(this.settings);
+		// Initialize prompt service
+		this.promptService = new PromptService(this.settings.getCustomPrompt());
+
+		// Initialize AI provider
+		const selectedModel = this.settings.getSelectedModel();
+		if (selectedModel) {
+			this.provider = ProvidersFactory.createProvider(selectedModel, this.settings.getMaxTokens(), this.settings.getTemperature());
+		}
 	}
 
 	/**
@@ -91,6 +90,7 @@ export class YouTubeSummarizerPlugin extends Plugin {
 					}
 				} catch (error) {
 					new Notice(`Failed to process video: ${error.message}`);
+					console.error('Failed to process video:', error);
 				}
 			},
 		});
@@ -116,25 +116,10 @@ export class YouTubeSummarizerPlugin extends Plugin {
 					}
 				} catch (error) {
 					new Notice(`Failed to process video: ${error.message}`);
+					console.error('Failed to process video:', error);
 				}
 			},
 		});
-	}
-
-	/**
-	 * Updates the plugin settings.
-	 * This method updates the settings in the storage service and reinitializes the Gemini service.
-	 * @param settings The new settings to be applied.
-	 * @returns {Promise<void>} A promise that resolves when the settings are updated.
-	 */
-	async updateSettings(settings: Partial<PluginSettings>): Promise<void> {
-		// Update settings in storage service
-		await this.storageService.updateSettings(settings);
-		this.settings = await this.storageService.getSettings();
-
-		// Reinitializes the Gemini service
-		this.geminiService = new GeminiService(this.settings);
-		this.promptService = new PromptService(this.settings.customPrompt);
 	}
 
 	/**
@@ -152,11 +137,24 @@ export class YouTubeSummarizerPlugin extends Plugin {
 
 		try {
 			this.isProcessing = true;
-			// Ensure the Gemini API key is set
-			if (!this.settings.geminiApiKey) {
+			// Get the selected model
+			const selectedModel = this.settings.getSelectedModel();
+
+			if (!selectedModel) {
+				new Notice('No AI model selected. Please select a model in the plugin settings.');
+				return;
+			}
+
+			// Check if the selected model's provider has an API key
+			if (!selectedModel.provider.apiKey) {
 				new Notice(
-					'Gemini API key is missing. Please set it in the plugin settings.'
+					`${selectedModel.provider.name} API key is missing. Please set it in the plugin settings.`
 				);
+				return;
+			}
+
+			if (!this.provider) {
+				new Notice('AI provider not initialized. Please check your settings.');
 				return;
 			}
 
@@ -169,23 +167,24 @@ export class YouTubeSummarizerPlugin extends Plugin {
 
 			//Build the prompt for LLM
 			const prompt = this.promptService.buildPrompt(transcript.lines.map((line) => line.text).join(' '));
-			// Generate the summary using Gemini service
+			// Generate the summary using the provider
 			new Notice('Generating summary...');
-			const geminiSummary = await this.geminiService.summarize(prompt);
+			const summary = await this.provider.summarizeVideo(transcript.videoId, prompt);
 
 			// Create the summary content
-			const summary = this.generateSummary(
+			const content = this.generateSummary(
 				transcript,
 				thumbnailUrl,
 				url,
-				geminiSummary
+				summary
 			);
 
 			// Insert the summary into the markdown view
-			editor.replaceSelection(summary);
+			editor.replaceSelection(content);
 			new Notice('Summary generated successfully!');
 		} catch (error) {
 			new Notice(`Error: ${error.message}`);
+			console.error('Summary generation failed:', error);
 		} finally {
 			// Reset the processing flag
 			this.isProcessing = false;
