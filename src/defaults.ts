@@ -3,10 +3,6 @@ import { StoredProvider } from './types';
 // List of supported Gemini models
 const DEFAULT_GEMINI_MODELS = [
     {
-        name: 'gemini-2.5-pro-exp-03-25',
-        displayName: 'Gemini 2.5 Pro Experimental'
-    },
-    {
         name: 'gemini-2.0-flash',
         displayName: 'Gemini 2.0 Flash'
     },
