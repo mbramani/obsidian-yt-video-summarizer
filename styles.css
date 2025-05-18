@@ -11,27 +11,27 @@ If your plugin does not need CSS, delete this file.
 .yt-summarizer {
 	display: flex;
 	flex-direction: column;
-	gap: var(--size-4-4);
+	gap: 1em;
 }
 
 .yt-summarizer__input {
 	width: 100%;
-	margin-bottom: var(--size-4-4);
-	padding: var(--size-4-2);
-	border-radius: var(--radius-s);
+	margin-bottom: 1em;
+	padding: 8px;
+	border-radius: 4px;
 	border: 1px solid var(--background-modifier-border);
 }
 
 .yt-summarizer__actions {
 	display: flex;
 	justify-content: flex-end;
-	gap: var(--size-4-2);
+	gap: 10px;
 }
 
 /* Buttons */
 .yt-summarizer__button {
-	padding: var(--size-4-2) var(--size-4-4);
-	border-radius: var(--radius-s);
+	padding: 8px 16px;
+	border-radius: 4px;
 	font-weight: 500;
 	cursor: pointer;
 }
@@ -46,288 +46,22 @@ If your plugin does not need CSS, delete this file.
 
 /* Settings */
 .yt-summarizer-settings {
-	padding: var(--size-4-4);
+	padding: 1em;
+}
+
+.yt-summarizer-settings__textarea {
+	width: 100%;
+	min-height: 150px;
+	font-family: var(--font-monospace);
 }
 
 /* Modal */
 .yt-summarizer-modal {
-	padding: var(--size-4-6);
+	padding: 1.5em;
 }
 
 .yt-summarizer-modal__title {
-	margin-bottom: var(--size-4-4);
-	font-size: var(--font-ui-large);
-	font-weight: var(--font-medium);
-	color: var(--text-normal);
-}
-
-
-/* Modal styles */
-.yt-summarizer-modal__input {
-	width: 100%;
-	margin-bottom: var(--size-4-4);
-	padding: var(--size-4-2);
-	border-radius: var(--radius-s);
-	border: 1px solid var(--background-modifier-border);
-	background-color: var(--background-primary);
-	color: var(--text-normal);
-}
-
-.yt-summarizer-modal__actions {
-	display: flex;
-	justify-content: flex-end;
-	gap: var(--size-4-2);
-}
-
-.yt-summarizer-modal__button {
-	padding: var(--size-4-2) var(--size-4-4);
-	border-radius: var(--radius-s);
-	font-weight: var(--font-medium);
-	cursor: pointer;
-	background-color: var(--background-modifier-border);
-	color: var(--text-normal);
-	border: none;
-	transition: all 0.2s ease;
-}
-
-.yt-summarizer-modal__button:hover {
-	background-color: var(--background-modifier-border-hover);
-}
-
-.yt-summarizer-modal__button--primary {
-	background-color: var(--interactive-accent);
-	color: var(--text-on-accent);
-}
-
-.yt-summarizer-modal__button--primary:hover {
-	background-color: var(--interactive-accent-hover);
-}
-
-/* Utility classes */
-.yt-summarizer-hidden {
-	display: none;
-}
-
-.yt-summarizer-flex {
-	display: flex;
-}
-
-.yt-summarizer-flex-col {
-	flex-direction: column;
-}
-
-.yt-summarizer-gap-4 {
-	gap: var(--size-4-4);
-}
-
-.yt-summarizer-mt-4 {
-	margin-top: var(--size-4-4);
-}
-
-.yt-summarizer-mb-4 {
-	margin-bottom: var(--size-4-4);
-}
-
-.settings-tab-content {
-	padding: var(--size-4-2);
-}
-
-.settings-tab-content .content {
-	display: none;
-}
-
-.settings-tab-content .content.is-active {
-	display: block;
-}
-
-.settings-tab-content .setting-item {
-	border: none;
-	padding: var(--size-4-2) 0;
-}
-
-.settings-tab-content .setting-item:not(:last-child) {
-	border-bottom: 1px solid var(--background-modifier-border);
-}
-
-.settings-tab-content .setting-item-info {
-	font-size: var(--font-ui-small);
-}
-
-.settings-tab-content .setting-item-control {
-	flex-wrap: wrap;
-	gap: var(--size-4-2);
-	justify-content: flex-end;
-}
-
-/* Settings Tab Styles */
-
-/* Tab Layout */
-.yt-summarizer-settings__tab-group {
-	display: flex;
-	flex-direction: column;
-	gap: var(--size-4-4);
-}
-
-.yt-summarizer-settings__tab-list {
-	display: flex;
-	gap: var(--size-4-2);
-	border-bottom: 2px solid var(--background-modifier-border);
-	margin-bottom: var(--size-4-4);
-}
-
-.yt-summarizer-settings__tab {
-	padding: var(--size-4-2) var(--size-4-4);
-	cursor: pointer;
-	border-bottom: 2px solid transparent;
-	margin-bottom: -2px;
-	color: var(--text-muted);
-	transition: all 0.5s ease;
-}
-
-.yt-summarizer-settings__tab:hover {
-	color: var(--interactive-accent-hover);
-	border-color: var(--interactive-accent-hover);
-}
-
-.yt-summarizer-settings__tab.is-active {
-	border-color: var(--interactive-accent);
-	color: var(--interactive-accent);
-}
-
-/* Provider Accordions */
-.yt-summarizer-settings__provider-accordions {
-	display: flex;
-	flex-direction: column;
-	gap: var(--size-4-4);
-	margin-top: var(--size-4-6);
-}
-
-.yt-summarizer-settings__provider-accordion {
-	border: 1px solid var(--background-modifier-border);
-	border-radius: var(--radius-m);
-	background-color: var(--background-secondary);
-	overflow: hidden;
-}
-
-.yt-summarizer-settings__provider-accordion .clickable-icon {
-	padding: 0;
-	width: var(--size-4-6);
-	height: var(--size-4-6);
-	cursor: pointer;
-}
-
-.yt-summarizer-settings__provider-header {
-	padding: var(--size-4-3);
-	cursor: pointer;
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	background-color: var(--background-secondary);
-	border-radius: var(--radius-s);
-}
-
-.yt-summarizer-settings__provider-header h3 {
-	margin: 0;
-}
-
-.yt-summarizer-settings__provider-header .clickable-icon {
-	opacity: 0;
-}
-
-.yt-summarizer-settings__provider-accordion.is-expanded .clickable-icon,
-.yt-summarizer-settings__provider-header:hover .clickable-icon {
-	opacity: 1;
-}
-
-.yt-summarizer-settings__provider-info {
-	display: flex;
-	align-items: center;
-	gap: var(--size-4-2);
-}
-
-.yt-summarizer-settings__provider-controls {
-	display: flex;
-	align-items: center;
-	gap: var(--size-4-2);
-	flex-direction: row;
-}
-
-.yt-summarizer-settings__collapse-icon {
-	transition: transform 0.2s ease;
-	width: var(--size-4-6);
-	height: var(--size-4-6);
-	display: flex;
-	align-items: center;
-	justify-content: center;
-}
-
-.is-expanded .yt-summarizer-settings__collapse-icon {
-	transform: rotate(180deg);
-}
-
-/* Provider Content */
-.yt-summarizer-settings__provider-content {
-	padding: var(--size-4-4);
-	display: none;
-}
-
-.yt-summarizer-settings__provider-accordion.is-expanded .yt-summarizer-settings__provider-content {
-	display: block;
-}
-
-/* Models List */
-.yt-summarizer-settings__models-list {
-	max-height: 300px;
-	overflow-y: auto;
-}
-
-
-.yt-summarizer-settings__model-details {
-	display: flex;
-	flex-direction: column;
-}
-
-.yt-summarizer-settings__model-details .yt-summarizer-settings__display-name {
-	font-weight: bold;
-}
-
-/* Modal Styles */
-.yt-summarizer-settings__modal input[disabled] {
-	color: var(--text-faint);
-}
-
-.yt-summarizer-settings__button-container {
-	display: flex;
-	justify-content: flex-end;
-	gap: var(--size-4-2);
-}
-
-/* Summary Settings */
-.yt-summarizer-settings__summary-prompt {
-	width: 100%;
-	min-height: 150px;
-	font-family: var(--font-monospace);
-	padding: var(--size-4-2);
-	border-radius: var(--radius-s);
-	border: 1px solid var(--background-modifier-border);
-	background-color: var(--background-primary);
-	color: var(--text-normal);
-	resize: vertical;
-}
-
-/* Button Styles */
-.yt-summarizer-settings__add-button {
-	margin-top: var(--size-4-3);
-	border: none;
-	padding: 0;
-}
-
-.yt-summarizer-settings__add-provider-button {
-	margin-top: var(--size-4-6);
-}
-
-/* Models Header */
-.yt-summarizer-settings__models-header {
-	margin-top: var(--size-4-6);
-	margin-bottom: var(--size-4-3);
+	margin-bottom: 1em;
+	font-size: 1.2em;
+	font-weight: 600;
 }
