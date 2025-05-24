@@ -29,7 +29,9 @@
 		"typescript": "4.7.4"
 	},
 	"dependencies": {
-		"@google/generative-ai": "^0.21.0",
-		"node-html-parser": "^7.0.1"
+		"@anthropic-ai/sdk": "^0.40.0",
+		"@google/generative-ai": "^0.24.0",
+		"node-html-parser": "^7.0.1",
+		"openai": "^4.96.0"
 	}
 }
