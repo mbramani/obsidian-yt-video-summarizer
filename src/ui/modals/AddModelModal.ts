@@ -58,6 +58,7 @@ export class AddModelModal extends Modal {
                                     type: this.provider.type,
                                     apiKey: this.provider.apiKey,
                                     url: this.provider.url,
+                                    isBuiltIn: false
                                 }
                             };
                             await this.handlers.handleModelAdd(newModel);

@@ -9,7 +9,7 @@ export class AnthropicProvider implements AIModelProvider {
         private model: string,
         private maxTokens: number,
         private temperature: number,
-        baseUrl: string|undefined
+        baseUrl: string | undefined
     ) {
         this.client = new Anthropic({
             apiKey: apiKey,
@@ -45,7 +45,10 @@ export class AnthropicProvider implements AIModelProvider {
                 messages: [{ role: 'user', content: prompt }]
             });
 
-            return response.content[0].text;
+            if (response.content[0].type === 'text') {
+                return response.content[0].text;
+            }
+            throw new Error('Unexpected response type from Anthropic API');
         } catch (error) {
             console.error('Error generating summary with Anthropic:', error);
             throw error;
