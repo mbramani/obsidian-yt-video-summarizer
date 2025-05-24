@@ -1,0 +1,23 @@
+name: Build Check
+
+on:
+    pull_request:
+        branches:
+            - main
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v2
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v2
+              with:
+                  node-version: '23'
+
+            - name: Install dependencies
+              run: npm install
+
+            - name: Build project
+              run: npm run build 

@@ -11,13 +11,15 @@ on:
 
 jobs:
     build:
-        if: "!contains(github.event.head_commit.message, 'chore: bump version')"
+        if: |
+            github.repository == 'mbramani/obsidian-yt-video-summarizer' && 
+            !contains(github.event.head_commit.message, 'chore: bump version')
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v2
               with:
                   fetch-depth: 0
-                  token: ${{ secrets.ACCESS_TOKEN }}
+                  token: ${{ secrets.GITHUB_TOKEN }}
 
             - name: Setup Node.js
               uses: actions/setup-node@v2
@@ -61,7 +63,7 @@ jobs:
               id: create_release
               uses: actions/create-release@v1
               env:
-                  GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               with:
                   tag_name: ${{ env.VERSION }}
                   release_name: ${{ env.VERSION }}
@@ -71,7 +73,7 @@ jobs:
             - name: Upload main.js
               uses: actions/upload-release-asset@v1
               env:
-                  GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               with:
                   upload_url: ${{ steps.create_release.outputs.upload_url }}
                   asset_path: ./main.js
@@ -81,7 +83,7 @@ jobs:
             - name: Upload manifest.json
               uses: actions/upload-release-asset@v1
               env:
-                  GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               with:
                   upload_url: ${{ steps.create_release.outputs.upload_url }}
                   asset_path: ./manifest.json
@@ -91,7 +93,7 @@ jobs:
             - name: Upload styles.css
               uses: actions/upload-release-asset@v1
               env:
-                  GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               with:
                   upload_url: ${{ steps.create_release.outputs.upload_url }}
                   asset_path: ./styles.css
