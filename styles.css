@@ -209,6 +209,15 @@ If your plugin does not need CSS, delete this file.
 	overflow: hidden;
 }
 
+.is-phone .setting-item.setting-model .setting-item-control {
+	margin-top: 0;
+	width: auto;
+}
+
+.is-phone .setting-item.setting-model .setting-item-control button {
+	padding: 0;
+}
+
 .yt-summarizer-settings__provider-accordion .clickable-icon {
 	padding: 0;
 	width: var(--size-4-6);
