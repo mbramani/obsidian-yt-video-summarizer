@@ -303,9 +303,17 @@ If your plugin does not need CSS, delete this file.
 }
 
 /* Summary Settings */
+.setting-item.yt-summarizer-settings__setting-item-no-header {
+	padding-top: 0;
+	border-top: none;
+}
+.setting-item.yt-summarizer-settings__setting-item-no-header .setting-item-info {
+	display: none;
+}
+
 .yt-summarizer-settings__summary-prompt {
 	width: 100%;
-	min-height: 150px;
+	min-height: 15em;
 	font-family: var(--font-monospace);
 	padding: var(--size-4-2);
 	border-radius: var(--radius-s);
