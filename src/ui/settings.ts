@@ -216,22 +216,21 @@ export class SettingsTab extends PluginSettingTab {
 
     private reload(): void {
         // Find currently opened accordion
-        const openedAccordion = document.querySelector('.yt-summarizer-settings__provider-content[style*="block"]');
+        const openedAccordion = document.querySelector('.yt-summarizer-settings__provider-accordion.is-expanded');
         let openedProviderName: string | null = null;
 
         if (openedAccordion) {
-            const accordion = openedAccordion.closest('.yt-summarizer-settings__provider-accordion');
-            if (accordion) {
-                openedProviderName = accordion.getAttribute('data-provider-name');
-            }
+            openedProviderName = openedAccordion.getAttribute('data-provider-name');
         }
 
+        console.log('openedProviderName:', openedProviderName);
         // Refresh the display
         this.display();
 
         // If there was an opened accordion, find and open it in the new display
         if (openedProviderName) {
             const newAccordion = document.querySelector(`[data-provider-name="${openedProviderName}"]`);
+            console.log('newAccordion:', newAccordion);
             if (newAccordion) {
                 newAccordion.addClass('is-expanded');
             }
