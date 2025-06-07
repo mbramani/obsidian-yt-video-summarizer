@@ -39,6 +39,11 @@ export class YouTubeSummarizerPlugin extends Plugin {
 		}
 	}
 
+	public async saveData(data: any): Promise<void> {
+		await super.saveData(data);
+		await this.initializeServices();
+	}
+
 	/**
 	 * Initializes the plugin services.
 	 * This method creates instances of the required services and loads the plugin settings.
