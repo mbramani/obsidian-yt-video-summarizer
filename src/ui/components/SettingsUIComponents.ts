@@ -51,6 +51,7 @@ export class SettingsUIComponents {
     createModelItem(model: ModelConfig): HTMLElement {
         const modelItem = document.createElement('div');
         modelItem.addClass('setting-item');
+        modelItem.addClass('setting-model');
         modelItem.setAttribute('data-model-name', model.name);
 
         // Info container (left side)

@@ -23,7 +23,7 @@ export class SettingsTab extends PluginSettingTab {
         const selectedModel = this.settings.getSelectedModel();
         this.uiComponents = new SettingsUIComponents(app);
 
-        // Create callbacks for UI updates
+        // Create callbacks for UI update
         const callbacks: UICallbacks = {
             onModelAdded: (model) => {
                 this.reload();
@@ -113,7 +113,7 @@ export class SettingsTab extends PluginSettingTab {
     private displayAIProvidersSection(containerEl: HTMLElement): void {
         // Active Model Selection
         const availableModels = this.getAvailableModels();
-		const selectedModel = this.settings.getSelectedModel();
+        const selectedModel = this.settings.getSelectedModel();
 
         new Setting(containerEl)
             .setName('Active Model')
@@ -160,10 +160,14 @@ export class SettingsTab extends PluginSettingTab {
     }
 
     private displaySummarySettingsSection(containerEl: HTMLElement): void {
-        // Summary Prompt Setting
+        // Summary Prompt Setting - Heading
         new Setting(containerEl)
             .setName('Summary prompt')
             .setDesc('Customize the prompt for generating summaries')
+            .setHeading();
+
+        // Summary Prompt Setting - Textarea
+        const textareaSetting = new Setting(containerEl)
             .addTextArea(text =>
                 text
                     .setPlaceholder('Enter custom prompt')
@@ -175,6 +179,8 @@ export class SettingsTab extends PluginSettingTab {
                         textArea.inputEl.addClass('yt-summarizer-settings__summary-prompt');
                     })
             );
+
+        textareaSetting.settingEl.addClass('yt-summarizer-settings__setting-item-no-header');
 
         // Max Tokens Setting
         new Setting(containerEl)
@@ -210,22 +216,21 @@ export class SettingsTab extends PluginSettingTab {
 
     private reload(): void {
         // Find currently opened accordion
-        const openedAccordion = document.querySelector('.yt-summarizer-settings__provider-content[style*="block"]');
+        const openedAccordion = document.querySelector('.yt-summarizer-settings__provider-accordion.is-expanded');
         let openedProviderName: string | null = null;
 
         if (openedAccordion) {
-            const accordion = openedAccordion.closest('.yt-summarizer-settings__provider-accordion');
-            if (accordion) {
-                openedProviderName = accordion.getAttribute('data-provider-name');
-            }
+            openedProviderName = openedAccordion.getAttribute('data-provider-name');
         }
 
+        console.log('openedProviderName:', openedProviderName);
         // Refresh the display
         this.display();
 
         // If there was an opened accordion, find and open it in the new display
         if (openedProviderName) {
             const newAccordion = document.querySelector(`[data-provider-name="${openedProviderName}"]`);
+            console.log('newAccordion:', newAccordion);
             if (newAccordion) {
                 newAccordion.addClass('is-expanded');
             }
