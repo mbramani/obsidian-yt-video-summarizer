@@ -209,8 +209,8 @@ If your plugin does not need CSS, delete this file.
 	overflow: hidden;
 }
 
-.is-phone .setting-item.setting-model .setting-item-control {
-	margin-top: 0;
+.is-phone .yt-summarizer-settings__models-list .setting-item.setting-model .setting-item-control {
+	margin-top: 0 !important;
 	width: auto;
 }
 

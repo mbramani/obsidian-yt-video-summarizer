@@ -160,7 +160,13 @@ export class YouTubeSummarizerPlugin extends Plugin {
 
 			// Fetch the video transcript
 			new Notice('Fetching video transcript...');
-			const transcript = await this.youtubeService.fetchTranscript(url);
+			let transcript: TranscriptResponse;
+			try {
+				transcript = await this.youtubeService.fetchTranscript(url);
+			} catch (error) {
+				new Notice(`Error: ${error.message}`);
+				return;
+			}
 			const thumbnailUrl = YouTubeService.getThumbnailUrl(
 				transcript.videoId
 			);
@@ -169,7 +175,14 @@ export class YouTubeSummarizerPlugin extends Plugin {
 			const prompt = this.promptService.buildPrompt(transcript.lines.map((line) => line.text).join(' '));
 			// Generate the summary using the provider
 			new Notice('Generating summary...');
-			const summary = await this.provider.summarizeVideo(transcript.videoId, prompt);
+			let summary: string;
+			try {
+				summary = await this.provider.summarizeVideo(transcript.videoId, prompt);
+			} catch (error) {
+				new Notice(`Error: ${error.message}`);
+				console.error('Failed to fetch transcript:', error);
+				return;
+			}
 
 			// Create the summary content
 			const content = this.generateSummary(
