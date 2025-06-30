@@ -72,20 +72,39 @@ export class YouTubeService {
 			const videoId = this.extractMatch(url, VIDEO_ID_REGEX);
 			if (!videoId) throw new Error('Invalid YouTube URL');
 
-			// Fetch the video page content
-			const videoPageBody = await request(url);
+			let captions: string | null = null;
+			let videoPageBody: string | null = null;
+			let lastError: Error | null = null;
 
-			// Extract video metadata from page content
-			const title = this.extractMatch(videoPageBody, TITLE_REGEX);
-			const author = this.extractMatch(videoPageBody, AUTHOR_REGEX);
-			const channelId = this.extractMatch(
-				videoPageBody,
-				CHANNEL_ID_REGEX
-			);
-			const captions = await this.extractCaptions(
-				videoPageBody,
-				langCode
-			);
+			// In some cases a trasnscript url's content can be empty or fail to load,
+			// so we will retry fetching captions up to 3 times with fresh page content each time.
+			// Try to get captions with retry logic - refresh page content each time
+			for (let attempt = 1; attempt <= 3; attempt++) {
+				try {
+					// Get fresh page content for each attempt
+					videoPageBody = await request(url);
+					captions = await this.extractCaptions(videoPageBody, langCode);
+
+					if (captions && captions.trim() !== '') {
+						break;
+					} else {
+						throw new Error('Empty captions received');
+					}
+
+				} catch (error) {
+					lastError = error as Error;
+					captions = null;
+				}
+			}
+
+			if (!captions) {
+				throw new Error(`No captions available after 3 attempts. Last error: ${lastError?.message}`);
+			}
+
+			// Extract video metadata from the page content
+			const title = this.extractMatch(videoPageBody!, TITLE_REGEX);
+			const author = this.extractMatch(videoPageBody!, AUTHOR_REGEX);
+			const channelId = this.extractMatch(videoPageBody!, CHANNEL_ID_REGEX);
 
 			const response = {
 				url,
@@ -147,23 +166,54 @@ export class YouTubeService {
 		const dataString = playerScript.textContent.slice(start, end);
 		const data = JSON.parse(dataString);
 
-		// Find available caption tracks and select the desired language
+		// Find available caption tracks
 		const captionTracks =
 			data?.captions?.playerCaptionsTracklistRenderer?.captionTracks ||
 			[];
-		const captionTrack = langCode
-					? captionTracks.find((track: any) =>
-							track.languageCode.includes(langCode)
-					) || captionTracks[0]
-					: captionTracks[0];
 
-		if (!captionTrack) throw new Error('No captions available');
+		if (captionTracks.length === 0) {
+			throw new Error('No captions available');
+		}
 
-		// Format and fetch captions URL
-		const captionsUrl = captionTrack.baseUrl.startsWith('https://')
-			? captionTrack.baseUrl
-			: `https://www.youtube.com${captionTrack.baseUrl}`;
-		return await request(captionsUrl);
+		// Sort tracks: prioritize requested language, then others
+		const sortedTracks = [...captionTracks].sort((a: any, b: any) => {
+			const aMatchesLang = a.languageCode && a.languageCode.includes(langCode);
+			const bMatchesLang = b.languageCode && b.languageCode.includes(langCode);
+
+			if (aMatchesLang && !bMatchesLang) return -1;
+			if (!aMatchesLang && bMatchesLang) return 1;
+			return 0;
+		});
+
+		// Try each track until we successfully get captions
+		for (let i = 0; i < sortedTracks.length; i++) {
+			const track = sortedTracks[i];
+
+			if (!track.baseUrl) {
+				continue;
+			}
+
+			try {
+				// Format captions URL
+				const captionsUrl = track.baseUrl.startsWith('https://')
+					? track.baseUrl
+					: `https://www.youtube.com${track.baseUrl}`;
+					
+				const captionsXML = await request(captionsUrl);
+
+				// Validate that we received actual XML content
+				if (!captionsXML || captionsXML.trim() === '') {
+					continue;
+				}
+
+				return captionsXML;
+
+			} catch (error) {
+				continue;
+			}
+		}
+		
+		throw new Error('Failed to fetch captions from any available track');
 	}
 
 	/**
