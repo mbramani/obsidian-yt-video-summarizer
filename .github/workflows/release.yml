@@ -1,109 +1,116 @@
 name: Release
 
 on:
-    push:
-        branches:
-            - main
-        paths-ignore:
-            - 'package.json'
-            - 'manifest.json'
-            - 'versions.json'
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - 'package.json'
+      - 'manifest.json'
+      - 'versions.json'
+
+permissions:
+  contents: write  # Required for creating releases, uploading assets, and pushing commits
 
 jobs:
-    build:
-        if: |
-            github.repository == 'mbramani/obsidian-yt-video-summarizer' && 
-            !contains(github.event.head_commit.message, 'chore: bump version')
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v2
-              with:
-                  fetch-depth: 0
-                  token: ${{ secrets.GITHUB_TOKEN }}
+  build:
+    if: |
+      github.repository == 'mbramani/obsidian-yt-video-summarizer' && 
+      !contains(github.event.head_commit.message, 'chore: bump version')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3  
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-            - name: Setup Node.js
-              uses: actions/setup-node@v2
-              with:
-                  node-version: '18'
+      - name: Setup Node.js
+        uses: actions/setup-node@v3 
+        with:
+          node-version: '18'
 
-            - name: Install dependencies
-              run: npm install
+      - name: Install dependencies
+        run: npm install
 
-            - name: Bump version
-              id: bump
-              run: |
-                  current_ver=$(node -p "require('./package.json').version")
-                  IFS='.' read -r major minor patch <<< "$current_ver"
+      - name: Bump version
+        id: bump
+        run: |
+          current_ver=$(node -p "require('./package.json').version")
+          IFS='.' read -r major minor patch <<< "$current_ver"
 
-                  commit_msg=$(git log -1 --pretty=%B)
+          commit_msg=$(git log -1 --pretty=%B)
 
-                  if echo "$commit_msg" | grep -q "^feat!:\|BREAKING CHANGE:"; then
-                    new_ver="$((major + 1)).0.0"
-                  elif echo "$commit_msg" | grep -q "^feat:"; then
-                    new_ver="$major.$((minor + 1)).0"
-                  else
-                    new_ver="$major.$minor.$((patch + 1))"
-                  fi
+          if echo "$commit_msg" | grep -q "^feat!:\|BREAKING CHANGE:"; then
+            new_ver="$((major + 1)).0.0"
+          elif echo "$commit_msg" | grep -q "^feat:"; then
+            new_ver="$major.$((minor + 1)).0"
+          else
+            new_ver="$major.$minor.$((patch + 1))"
+          fi
 
-                  # Set both env and output
-                  echo "VERSION=$new_ver" >> $GITHUB_ENV
-                  echo "version=$new_ver" >> $GITHUB_OUTPUT
+          echo "VERSION=$new_ver" >> $GITHUB_ENV
+          echo "version=$new_ver" >> $GITHUB_OUTPUT
 
-            - name: Update versions
-              env:
-                  VERSION: ${{ env.VERSION }}
-              run: |
-                  npm version $VERSION --no-git-tag-version
-                  node version-bump.mjs
+      - name: Update versions
+        env:
+          VERSION: ${{ env.VERSION }}
+        run: |
+          npm version $VERSION --no-git-tag-version
+          node version-bump.mjs
 
-            - name: Build project
-              run: npm run build
+      - name: Build project
+        run: npm run build
 
-            - name: Create Release
-              id: create_release
-              uses: actions/create-release@v1
-              env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-              with:
-                  tag_name: ${{ env.VERSION }}
-                  release_name: ${{ env.VERSION }}
-                  draft: false
-                  prerelease: false
+      - name: Create Tag
+        run: |
+          git tag ${{ env.VERSION }}
+          git push origin ${{ env.VERSION }}
 
-            - name: Upload main.js
-              uses: actions/upload-release-asset@v1
-              env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-              with:
-                  upload_url: ${{ steps.create_release.outputs.upload_url }}
-                  asset_path: ./main.js
-                  asset_name: main.js
-                  asset_content_type: text/javascript
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ env.VERSION }}
+          release_name: ${{ env.VERSION }}
+          draft: false
+          prerelease: false
 
-            - name: Upload manifest.json
-              uses: actions/upload-release-asset@v1
-              env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-              with:
-                  upload_url: ${{ steps.create_release.outputs.upload_url }}
-                  asset_path: ./manifest.json
-                  asset_name: manifest.json
-                  asset_content_type: application/json
+      - name: Upload main.js
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./main.js
+          asset_name: main.js
+          asset_content_type: text/javascript
 
-            - name: Upload styles.css
-              uses: actions/upload-release-asset@v1
-              env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-              with:
-                  upload_url: ${{ steps.create_release.outputs.upload_url }}
-                  asset_path: ./styles.css
-                  asset_name: styles.css
-                  asset_content_type: text/css
+      - name: Upload manifest.json
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./manifest.json
+          asset_name: manifest.json
+          asset_content_type: application/json
 
-            - name: Commit version updates
-              run: |
-                  git config --local user.email "action@github.com"
-                  git config --local user.name "GitHub Action"
-                  git add package.json manifest.json versions.json
-                  git commit -m "chore: bump version to ${{ env.VERSION }}"
-                  git push
+      - name: Upload styles.css
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./styles.css
+          asset_name: styles.css
+          asset_content_type: text/css
+
+      - name: Commit version updates
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add package.json manifest.json versions.json
+          git commit -m "chore: bump version to ${{ env.VERSION }}"
+          git push
