@@ -2,26 +2,26 @@ import { StoredProvider } from './types';
 
 // List of supported Gemini models
 const DEFAULT_GEMINI_MODELS = [
-    {
-        name: 'gemini-2.0-flash',
-        displayName: 'Gemini 2.0 Flash'
-    },
-    {
-        name: 'gemini-2.0-flash-lite',
-        displayName: 'Gemini 2.0 Flash Lite'
-    },
-    {
-        name: 'gemini-1.5-flash',
-        displayName: 'Gemini 1.5 Flash'
-    },
-    {
-        name: 'gemini-1.5-flash-8b',
-        displayName: 'Gemini 1.5 Flash 8B'
-    },
-    {
-        name: 'gemini-1.5-pro',
-        displayName: 'Gemini 1.5 Pro'
-    }
+	{
+		name: 'gemini-2.5-pro',
+		displayName: 'Gemini 2.5 Pro'
+	},
+	{
+		name: 'gemini-2.5-flash',
+		displayName: 'Gemini 2.5 Flash'
+	},
+	{
+		name: 'gemini-2.5-flash-lite-preview-06-17',
+		displayName: 'Gemini 2.5 Flash-Lite Preview'
+	},
+	{
+		name: 'gemini-2.0-flash',
+		displayName: 'Gemini 2.0 Flash'
+	},
+	{
+		name: 'gemini-2.0-flash-lite',
+		displayName: 'Gemini 2.0 Flash-Lite'
+	}
 ];
 
 const DEFAULT_OPENAI_MODELS = [
@@ -119,5 +119,5 @@ Create a concise yet comprehensive summary of the video based on the provided su
 
 Note: Include all sections. If there are no technical terms, omit that section entirely.`;
 
-export const DEFAULT_MAX_TOKENS = 3000;
+export const DEFAULT_MAX_TOKENS = 4000;
 export const DEFAULT_TEMPERATURE = 1;

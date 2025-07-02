@@ -1,9 +1,10 @@
-import { App, Notice, PluginSettingTab, Setting } from 'obsidian';
+import { App, PluginSettingTab, Setting } from 'obsidian';
 import { ModelConfig, PluginSettings } from '../types';
-import { YouTubeSummarizerPlugin } from '../main';
-import { SettingsUIComponents } from './components/SettingsUIComponents';
 import { SettingsEventHandlers, UICallbacks } from './handlers/SettingsEventHandlers';
+
 import { SettingsModalsFactory } from './modals/SettingsModalsFactory';
+import { SettingsUIComponents } from './components/SettingsUIComponents';
+import { YouTubeSummarizerPlugin } from '../main';
 
 /**
  * Represents the settings tab for the YouTube Summarizer Plugin.
@@ -11,7 +12,7 @@ import { SettingsModalsFactory } from './modals/SettingsModalsFactory';
  * for configuring the plugin's settings.
  */
 export class SettingsTab extends PluginSettingTab {
-    private currentTab: string = 'ai-providers';
+    private currentTab = 'ai-providers';
     private settings: PluginSettings;
     private uiComponents: SettingsUIComponents;
     private eventHandlers: SettingsEventHandlers;

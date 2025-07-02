@@ -1,10 +1,11 @@
 import { App, Modal, Setting } from 'obsidian';
 import { ModelConfig, ProviderConfig } from '../../types';
+
 import { SettingsEventHandlers } from '../handlers/SettingsEventHandlers';
 
 export class AddModelModal extends Modal {
-    private name: string = '';
-    private displayName: string = '';
+    private name = '';
+    private displayName = '';
 
     constructor(
         app: App,

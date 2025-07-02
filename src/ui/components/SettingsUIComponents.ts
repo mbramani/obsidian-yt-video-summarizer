@@ -1,5 +1,6 @@
 import { App, Setting, setIcon } from 'obsidian';
 import { ModelConfig, ProviderConfig } from '../../types';
+
 import { SettingsEventHandlers } from '../handlers/SettingsEventHandlers';
 
 export class SettingsUIComponents {

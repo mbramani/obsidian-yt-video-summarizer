@@ -1,12 +1,13 @@
 import { App, Modal, Setting } from 'obsidian';
 import { ProviderConfig, ProviderType } from '../../types';
+
 import { SettingsEventHandlers } from '../handlers/SettingsEventHandlers';
 
 export class AddProviderModal extends Modal {
-    private name: string = '';
-    private type: string = 'openai';
-    private apiKey: string = '';
-    private url: string = '';
+    private name = '';
+    private type = 'openai';
+    private apiKey = '';
+    private url = '';
 
     constructor(
         app: App,
