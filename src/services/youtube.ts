@@ -280,31 +280,22 @@ export class YouTubeService {
 		// Format 2: <p t="1360" d="1680">Text here</p>
 		
 		// Try format 2 first (newer format with <p> tags, times in milliseconds)
-		const pTagRegex = /<p\s+t="(\d+)"\s+d="(\d+)"[^>]*>([\s\S]*?)<\/p>/g;
+		// Match entire <p> tag without assuming attribute order
+		const pTagRegex = /<p\s+([^>]+)>([\s\S]*?)<\/p>/g;
 		let match;
 		
 		while ((match = pTagRegex.exec(xmlContent)) !== null) {
-			const start = parseInt(match[1]); // Already in milliseconds
-			const duration = parseInt(match[2]);
-			const text = this.decodeHTML(match[3].replace(/<[^>]+>/g, ' ')); // Strip any inner tags
-
-			if (text.trim()) {
-				lines.push({
-					text: text.trim(),
-					offset: start,
-					duration,
-				});
-			}
-		}
-
-		// If no matches with <p> format, try <text> format (times in seconds)
-		if (lines.length === 0) {
-			const textRegex = /<text\s+start="([^"]+)"\s+dur="([^"]+)"[^>]*>([\s\S]*?)<\/text>/g;
+			const attributes = match[1];
+			const content = match[2];
 			
-			while ((match = textRegex.exec(xmlContent)) !== null) {
-				const start = parseFloat(match[1]) * 1000; // Convert to milliseconds
-				const duration = parseFloat(match[2]) * 1000;
-				const text = this.decodeHTML(match[3].replace(/<[^>]+>/g, ' '));
+			// Extract t and d attributes independently
+			const tMatch = attributes.match(/\bt="(\d+)"/);
+			const dMatch = attributes.match(/\bd="(\d+)"/);
+			
+			if (tMatch && dMatch) {
+				const start = parseInt(tMatch[1]); // Already in milliseconds
+				const duration = parseInt(dMatch[1]);
+				const text = this.decodeHTML(content.replace(/<[^>]+>/g, ' ')); // Strip any inner tags
 
 				if (text.trim()) {
 					lines.push({
@@ -312,6 +303,35 @@ export class YouTubeService {
 						offset: start,
 						duration,
 					});
+				}
+			}
+		}
+
+		// If no matches with <p> format, try <text> format (times in seconds)
+		if (lines.length === 0) {
+			// Match entire <text> tag without assuming attribute order
+			const textRegex = /<text\s+([^>]+)>([\s\S]*?)<\/text>/g;
+			
+			while ((match = textRegex.exec(xmlContent)) !== null) {
+				const attributes = match[1];
+				const content = match[2];
+				
+				// Extract start and dur attributes independently
+				const startMatch = attributes.match(/\bstart="([^"]+)"/);
+				const durMatch = attributes.match(/\bdur="([^"]+)"/);
+				
+				if (startMatch && durMatch) {
+					const start = parseFloat(startMatch[1]) * 1000; // Convert to milliseconds
+					const duration = parseFloat(durMatch[1]) * 1000;
+					const text = this.decodeHTML(content.replace(/<[^>]+>/g, ' '));
+
+					if (text.trim()) {
+						lines.push({
+							text: text.trim(),
+							offset: start,
+							duration,
+						});
+					}
 				}
 			}
 		}
