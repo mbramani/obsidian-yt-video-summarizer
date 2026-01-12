@@ -8,7 +8,7 @@ import {
 	TranscriptLine,
 	TranscriptResponse,
 } from 'src/types';
-import { request, requestUrl } from 'obsidian';
+import { requestUrl } from 'obsidian';
 
 /**
  * Service class for interacting with YouTube videos.
