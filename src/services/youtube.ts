@@ -1,6 +1,4 @@
 import {
-	AUTHOR_REGEX,
-	CHANNEL_ID_REGEX,
 	VIDEO_ID_REGEX,
 } from 'src/constants';
 import {
