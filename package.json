@@ -1,6 +1,6 @@
 {
 	"name": "obsidian-yt-video-summarizer",
-	"version": "1.2.1",
+	"version": "1.1.6",
 	"description": "Summarize YouTube videos using Gemini AI. Extract transcripts, generate summaries, and create structured notes.",
 	"main": "main.js",
 	"scripts": {

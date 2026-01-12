@@ -15,8 +15,10 @@ permissions:
 jobs:
   build:
     if: |
-      github.repository == 'mbramani/obsidian-yt-video-summarizer' && 
-      !contains(github.event.head_commit.message, 'chore: bump version')
+      github.repository == 'mbramani/obsidian-yt-video-summarizer' &&
+      github.ref == 'refs/heads/main' &&
+      !contains(github.event.head_commit.message, 'chore: bump version') &&
+      !contains(github.event.head_commit.message, '[skip release]')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3  
