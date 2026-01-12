@@ -175,7 +175,7 @@ export class YouTubeService {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
-				"User-Agent": "com.google.android.youtube/19.09.37 (Linux; U; Android 11) gzip",
+				"User-Agent": `com.google.android.youtube/${YouTubeService.DEFAULT_CLIENT_VERSION} (Linux; U; Android 11) gzip`,
 			},
 			body: JSON.stringify(requestBody),
 		});
