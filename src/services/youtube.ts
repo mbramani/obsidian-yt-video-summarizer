@@ -1,37 +1,97 @@
 import {
-	AUTHOR_REGEX,
-	CANONICAL_URL_REGEX,
-	CHANNEL_ID_REGEX,
-	TITLE_META_REGEX,
 	VIDEO_ID_REGEX,
-	VISITOR_DATA_REGEX_1,
-	VISITOR_DATA_REGEX_2,
-	YT_INITIAL_DATA_ALT_REGEX_1,
-	YT_INITIAL_DATA_ALT_REGEX_2,
-	YT_INITIAL_DATA_ALT_REGEX_3,
-	YT_INITIAL_DATA_REGEX,
 } from 'src/constants';
 import {
 	ThumbnailQuality,
-	TranscriptConfig,
 	TranscriptLine,
 	TranscriptResponse,
-	VideoData,
 } from 'src/types';
-import { request, requestUrl } from 'obsidian';
+import { requestUrl } from 'obsidian';
+
 /**
  * Service class for interacting with YouTube videos.
  * Provides methods to fetch video thumbnails and transcripts.
+ * Uses the same approach as youtube-transcript-api (Python library).
  */
 export class YouTubeService {
+	/**
+	 * YouTube's public InnerTube API key.
+	 *
+	 * IMPORTANT:
+	 * - This is a *public* key used by YouTube's own web/Android clients and by
+	 *   tools such as `youtube-transcript-api`. It is *not* tied to this
+	 *   project’s Google Cloud account and does not grant any additional
+	 *   privileges beyond what an anonymous YouTube client can do.
+	 * - Because this key is public and broadly distributed, it is expected to
+	 *   appear in source code and does **not** need to be treated as a secret,
+	 *   managed via environment variables, or rotated by this project.
+	 *
+	 * Rate limiting / usage:
+	 * - Requests made with this key are subject to YouTube's own internal
+	 *   throttling and abuse detection for anonymous clients. Very high
+	 *   volumes of requests may be rate limited or temporarily blocked by
+	 *   YouTube, outside the control of this plugin.
+	 * - If YouTube invalidates or changes this key in the future (e.g. 400/403
+	 *   responses that cannot be explained otherwise), the value here may need
+	 *   to be updated to a current public InnerTube key (for example by
+	 *   inspecting network traffic from the YouTube web/Android client or by
+	 *   checking updates in `youtube-transcript-api`).
+	 */
+	private static readonly INNERTUBE_API_KEY = "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8";
+	private static readonly INNERTUBE_PLAYER_URL = `https://www.youtube.com/youtubei/v1/player?key=${YouTubeService.INNERTUBE_API_KEY}`;
+
+	/**
+	 * Default InnerTube client configuration.
+	 *
+	 * These values were last verified against YouTube's API on 2026-01-12.
+	 *
+	 * If requests start failing with 400/403 errors or unexpected behavior,
+	 * try updating to a newer Android client version / SDK level that the
+	 * official YouTube Android app currently uses, then:
+	 *  - Update DEFAULT_CLIENT_VERSION / DEFAULT_ANDROID_SDK_VERSION below, or
+	 *  - Call YouTubeService.configureClient(...) from your plugin settings.
+	 */
+	private static readonly DEFAULT_CLIENT_VERSION = "19.09.37";
+	private static readonly DEFAULT_ANDROID_SDK_VERSION = 30;
+
+	// Mutable copies that can be overridden at runtime if needed.
+	private static clientVersion: string = YouTubeService.DEFAULT_CLIENT_VERSION;
+	private static androidSdkVersion: number = YouTubeService.DEFAULT_ANDROID_SDK_VERSION;
+
+	/**
+	 * Configure the InnerTube client version and Android SDK version used for
+	 * YouTube API requests. This allows updating these values without changing
+	 * the source code if YouTube deprecates the pinned defaults.
+	 */
+	public static configureClient(options: {
+		clientVersion?: string;
+		androidSdkVersion?: number;
+	}): void {
+		if (typeof options.clientVersion === "string" && options.clientVersion.trim().length > 0) {
+			YouTubeService.clientVersion = options.clientVersion.trim();
+		}
+		if (typeof options.androidSdkVersion === "number" && Number.isInteger(options.androidSdkVersion)) {
+			YouTubeService.androidSdkVersion = options.androidSdkVersion;
+		}
+	}
+
+	// Use ANDROID client like youtube-transcript-api does - it's less restricted
+	private static get INNERTUBE_CONTEXT() {
+		return {
+			client: {
+				clientName: "ANDROID",
+				clientVersion: YouTubeService.clientVersion,
+				androidSdkVersion: YouTubeService.androidSdkVersion,
+				hl: "en",
+				gl: "US",
+			},
+		};
+	}
 	/**
 	 * Gets the thumbnail URL for a YouTube video
 	 * @param videoId - The YouTube video identifier
 	 * @param quality - Desired thumbnail quality (default: 'maxres')
 	 * @returns URL string for the video thumbnail
-	 * @example
-	 * const thumbnailUrl = YouTubeService.getThumbnailUrl('dQw4w9WgXcQ', 'maxres');
-	 * console.log(thumbnailUrl); // 'https://img.youtube.com/vi/dQw4w9WgXcQ/maxresdefault.jpg'
 	 */
 	static getThumbnailUrl(
 		videoId: string,
@@ -51,9 +111,6 @@ export class YouTubeService {
 	 * Checks if a URL is a valid YouTube URL
 	 * @param url - The URL to check
 	 * @returns True if the URL is a YouTube URL, false otherwise
-	 * @example
-	 * const isYoutube = YouTubeService.isYouTubeUrl('https://youtube.com/watch?v=dQw4w9WgXcQ');
-	 * console.log(isYoutube); // true
 	 */
 	static isYouTubeUrl(url: string): boolean {
 		return (
@@ -63,7 +120,11 @@ export class YouTubeService {
 	}
 
 	/**
-	 * Fetches and processes a YouTube video transcript using advanced API approach
+	 * Fetches and processes a YouTube video transcript using the player API approach
+	 * This mimics how youtube-transcript-api (Python) works:
+	 * 1. Fetch player data with ANDROID client to get caption tracks
+	 * 2. Fetch transcript directly from caption track baseUrl
+	 * 
 	 * @param url - Full YouTube video URL
 	 * @param langCode - Language code for caption track (default: 'en')
 	 * @returns Promise containing video metadata and transcript
@@ -78,86 +139,208 @@ export class YouTubeService {
 			const videoId = this.extractMatch(url, VIDEO_ID_REGEX);
 			if (!videoId) throw new Error('Invalid YouTube URL');
 
-			// Fetch video page
-			const videoPageBody = await request(url);
-			if (!videoPageBody) throw new Error('Failed to fetch video page');
+			console.log(`Fetching transcript for video: ${videoId}`);
 
-			// Parse video page to get title and transcript requests
-			const videoData = this.parseVideoPageWithFallbacks(videoPageBody, {
-				lang: langCode,
-				country: "US",
-			});
+			// Step 1: Fetch player data to get caption tracks
+			const playerData = await this.fetchPlayerData(videoId);
+			
+			// Extract video metadata
+			const title = playerData.videoDetails?.title || 'Unknown';
+			const author = playerData.videoDetails?.author || 'Unknown';
+			const channelId = playerData.videoDetails?.channelId || '';
 
-			// Try each parameter combination until one succeeds
-			for (let i = 0; i < videoData.transcriptRequests.length; i++) {
-				const transcriptRequest = videoData.transcriptRequests[i];
-
-				// Extract and show params info
-				let paramsInfo = "UNKNOWN";
-				let paramsSource = "UNKNOWN";
-				try {
-					const requestBodyObj = JSON.parse(transcriptRequest.body);
-					const currentParams = requestBodyObj.params;
-					if (i === 0 && videoData.title) {
-						paramsSource = currentParams && currentParams.length > 50 ? "PAGE" : "GENERATED";
-					} else {
-						paramsSource = "GENERATED";
-					}
-					paramsInfo = `${currentParams.substring(0, 30)}... (${currentParams.length} chars)`;
-				} catch (parseError) {
-					paramsInfo = "PARSE_ERROR";
-				}
-
-				try {
-					console.log(
-						`Attempt ${i + 1}/${videoData.transcriptRequests.length}: Trying ${paramsSource} params: ${paramsInfo}`
-					);
-
-					const response = await requestUrl({
-						url: transcriptRequest.url,
-						method: "POST",
-						headers: {
-							...transcriptRequest.headers,
-							"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-							"Origin": "https://www.youtube.com",
-							"Referer": url,
-						},
-						body: transcriptRequest.body,
-					});
-
-					const lines = this.parseTranscript(response.text);
-
-					// If we got valid transcript lines, return success
-					if (lines && lines.length > 0) {
-						// Extract additional metadata
-						const author = this.extractMatch(videoPageBody, AUTHOR_REGEX);
-						const channelId = this.extractMatch(videoPageBody, CHANNEL_ID_REGEX);
-
-						return {
-							url,
-							videoId,
-							title: this.decodeHTML(videoData.title || 'Unknown'),
-							author: this.decodeHTML(author || 'Unknown'),
-							channelUrl: channelId
-								? `https://www.youtube.com/channel/${channelId}`
-								: '',
-							lines,
-						};
-					}
-				} catch (requestError: any) {
-					// Continue to next attempt unless this was the last one
-					if (i === videoData.transcriptRequests.length - 1) {
-						throw requestError;
-					}
-				}
+			// Step 2: Get caption tracks
+			const captionsData = playerData.captions?.playerCaptionsTracklistRenderer;
+			if (!captionsData || !captionsData.captionTracks) {
+				throw new Error('No captions available for this video');
 			}
 
-			throw new Error(
-				"All parameter combinations failed to fetch transcript"
-			);
+			// Step 3: Find the best matching caption track
+			const captionTrack = this.findCaptionTrack(captionsData.captionTracks, langCode);
+			if (!captionTrack) {
+				const availableLangs = captionsData.captionTracks.map((t: any) => t.languageCode).join(', ');
+				throw new Error(`No transcript found for language '${langCode}'. Available: ${availableLangs}`);
+			}
+
+			console.log(`Found caption track: ${captionTrack.name?.runs?.[0]?.text || captionTrack.languageCode}`);
+
+			// Step 4: Fetch the actual transcript from the caption URL
+			const transcriptUrl = captionTrack.baseUrl;
+			const lines = await this.fetchTranscriptFromUrl(transcriptUrl);
+
+			return {
+				url,
+				videoId,
+				title: this.decodeHTML(title),
+				author: this.decodeHTML(author),
+				channelUrl: channelId ? `https://www.youtube.com/channel/${channelId}` : '',
+				lines,
+			};
 		} catch (error: any) {
 			throw new Error(`Failed to fetch transcript: ${error.message}`);
 		}
+	}
+
+	/**
+	 * Fetches player data from YouTube's InnerTube API
+	 */
+	private async fetchPlayerData(videoId: string): Promise<any> {
+		const requestBody = {
+			context: YouTubeService.INNERTUBE_CONTEXT,
+			videoId: videoId,
+		};
+
+		const response = await requestUrl({
+			url: YouTubeService.INNERTUBE_PLAYER_URL,
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				"User-Agent": `com.google.android.youtube/${YouTubeService.DEFAULT_CLIENT_VERSION} (Linux; U; Android 11) gzip`,
+			},
+			body: JSON.stringify(requestBody),
+		});
+
+		let data: any;
+		try {
+			data = JSON.parse(response.text);
+		} catch (error) {
+			throw new Error(
+				`Failed to parse YouTube player data JSON: ${
+					error instanceof Error ? error.message : String(error)
+				}`,
+			);
+		}
+
+		// Check playability status
+		const playabilityStatus = data.playabilityStatus;
+		if (playabilityStatus) {
+			if (playabilityStatus.status === 'ERROR') {
+				throw new Error(playabilityStatus.reason || 'Video unavailable');
+			}
+			if (playabilityStatus.status === 'LOGIN_REQUIRED') {
+				throw new Error('This video requires login to view');
+			}
+			if (playabilityStatus.status === 'UNPLAYABLE') {
+				throw new Error(playabilityStatus.reason || 'Video is unplayable');
+			}
+		}
+
+		return data;
+	}
+
+	/**
+	 * Finds the best matching caption track for the requested language
+	 */
+	private findCaptionTrack(captionTracks: any[], langCode: string): any {
+		// First try exact match
+		let track = captionTracks.find((t: any) => t.languageCode === langCode);
+		if (track) return track;
+
+		// Try matching language prefix (e.g., 'en' matches 'en-US')
+		track = captionTracks.find((t: any) => t.languageCode.startsWith(langCode + '-'));
+		if (track) return track;
+
+		// Try finding track where requested lang is a prefix (e.g., 'en-US' when looking for 'en')
+		track = captionTracks.find((t: any) => langCode.startsWith(t.languageCode + '-'));
+		if (track) return track;
+
+		// Fall back to first available track
+		if (captionTracks.length > 0) {
+			console.log(`Language '${langCode}' not found, falling back to '${captionTracks[0].languageCode}'`);
+			return captionTracks[0];
+		}
+
+		return null;
+	}
+
+	/**
+	 * Fetches transcript XML from the caption track URL
+	 */
+	private async fetchTranscriptFromUrl(transcriptUrl: string): Promise<TranscriptLine[]> {
+		const response = await requestUrl({
+			url: transcriptUrl,
+			method: "GET",
+			headers: {
+				"Accept-Language": "en-US,en;q=0.9",
+			},
+		});
+
+		return this.parseTranscriptXml(response.text);
+	}
+
+	/**
+	 * Parses the transcript XML response into structured format
+	 */
+	private parseTranscriptXml(xmlContent: string): TranscriptLine[] {
+		const lines: TranscriptLine[] = [];
+
+		// Parse XML manually (Obsidian doesn't have DOMParser in all contexts)
+		// YouTube uses two different formats:
+		// Format 1: <text start="0.0" dur="1.54">Hey there</text>
+		// Format 2: <p t="1360" d="1680">Text here</p>
+		
+		// Try format 2 first (newer format with <p> tags, times in milliseconds)
+		// Match entire <p> tag without assuming attribute order
+		const pTagRegex = /<p\s+([^>]+)>([\s\S]*?)<\/p>/g;
+		let match;
+		
+		while ((match = pTagRegex.exec(xmlContent)) !== null) {
+			const attributes = match[1];
+			const content = match[2];
+			
+			// Extract t and d attributes independently
+			const tMatch = attributes.match(/\bt="(\d+)"/);
+			const dMatch = attributes.match(/\bd="(\d+)"/);
+			
+			if (tMatch && dMatch) {
+				const start = parseInt(tMatch[1]); // Already in milliseconds
+				const duration = parseInt(dMatch[1]);
+				const text = this.decodeHTML(content.replace(/<[^>]+>/g, ' ')); // Strip any inner tags
+
+				if (text.trim()) {
+					lines.push({
+						text: text.trim(),
+						offset: start,
+						duration,
+					});
+				}
+			}
+		}
+
+		// If no matches with <p> format, try <text> format (times in seconds)
+		if (lines.length === 0) {
+			// Match entire <text> tag without assuming attribute order
+			const textRegex = /<text\s+([^>]+)>([\s\S]*?)<\/text>/g;
+			
+			while ((match = textRegex.exec(xmlContent)) !== null) {
+				const attributes = match[1];
+				const content = match[2];
+				
+				// Extract start and dur attributes independently
+				const startMatch = attributes.match(/\bstart="([^"]+)"/);
+				const durMatch = attributes.match(/\bdur="([^"]+)"/);
+				
+				if (startMatch && durMatch) {
+					const start = parseFloat(startMatch[1]) * 1000; // Convert to milliseconds
+					const duration = parseFloat(durMatch[1]) * 1000;
+					const text = this.decodeHTML(content.replace(/<[^>]+>/g, ' '));
+
+					if (text.trim()) {
+						lines.push({
+							text: text.trim(),
+							offset: start,
+							duration,
+						});
+					}
+				}
+			}
+		}
+
+		if (lines.length === 0) {
+			throw new Error('Failed to parse transcript XML - no caption segments found');
+		}
+
+		return lines;
 	}
 
 	/**
@@ -165,9 +348,6 @@ export class YouTubeService {
 	 * @param text - The text to search within
 	 * @param regex - The regex pattern to match
 	 * @returns The first match or null if not found
-	 * @example
-	 * const match = this.extractMatch('Hello World', /Hello/);
-	 * console.log(match); // 'Hello'
 	 */
 	private extractMatch(text: string, regex: RegExp): string | null {
 		const match = text.match(regex);
@@ -175,296 +355,10 @@ export class YouTubeService {
 	}
 
 	/**
-	 * Generates transcript parameters using protobuf-like encoding
-	 */
-	private generateTranscriptParams(
-		videoId: string,
-		useAsrStyle: boolean,
-		field6Value: number,
-		lang = "en"
-	): string {
-		// Simple implementation without protobufjs dependency
-		// Uses base64 encoded parameter patterns that work with YouTube API
-		const variations = [
-			"CgNhc3ISAmVuGgASAggBMAE%3D", // ASR style pattern
-			"CgASAmVuGgA%3D", // Non-ASR style pattern
-			"CgNhc3ISAmVuGgA%3D", // Alternative ASR pattern
-			"CgASAmVuGgASAggBMAE%3D", // Alternative non-ASR pattern
-		];
-		
-		const baseIndex = useAsrStyle ? 0 : 1;
-		const variantIndex = (baseIndex + field6Value) % variations.length;
-		return variations[variantIndex];
-	}
-
-	/**
-	 * Generates alternative transcript parameter combinations
-	 */
-	private generateAlternativeTranscriptParams(
-		videoId: string,
-		lang = "en"
-	): string[] {
-		const variations = [
-			{ useAsrStyle: true, field6Value: 1 },
-			{ useAsrStyle: false, field6Value: 0 },
-			{ useAsrStyle: true, field6Value: 0 },
-			{ useAsrStyle: false, field6Value: 1 },
-		];
-
-		return variations.map((variant) =>
-			this.generateTranscriptParams(
-				videoId,
-				variant.useAsrStyle,
-				variant.field6Value,
-				lang
-			)
-		);
-	}
-
-	/**
-	 * Extracts transcript parameters from the video page
-	 */
-	private extractParamsFromPage(htmlContent: string): string | null {
-		
-		// Try to find ytInitialData script
-		let ytInitialDataMatch = htmlContent.match(YT_INITIAL_DATA_REGEX);
-
-		if (!ytInitialDataMatch) {
-			// Try alternative patterns
-			const altPatterns = [
-				YT_INITIAL_DATA_ALT_REGEX_1,
-				YT_INITIAL_DATA_ALT_REGEX_2,
-				YT_INITIAL_DATA_ALT_REGEX_3,
-			];
-
-			for (let i = 0; i < altPatterns.length; i++) {
-				const match = htmlContent.match(altPatterns[i]);
-				if (match) {
-					ytInitialDataMatch = match;
-					break;
-				}
-			}
-
-			if (!ytInitialDataMatch) {
-				return null;
-			}
-		}
-
-		try {
-			const ytInitialData = JSON.parse(ytInitialDataMatch[1]);
-
-			// Recursively search for getTranscriptEndpoint
-			const findGetTranscriptEndpoint = (obj: any, path = "", depth = 0): string | null => {
-				if (!obj || typeof obj !== "object") return null;
-
-				if (obj.getTranscriptEndpoint?.params) {
-					return obj.getTranscriptEndpoint.params;
-				}
-
-				// Recursively search in all properties
-				for (const [key, value] of Object.entries(obj)) {
-					if (value && typeof value === "object") {
-						const result = findGetTranscriptEndpoint(value, path ? `${path}.${key}` : key, depth + 1);
-						if (result) return result;
-					}
-				}
-
-				return null;
-			};
-
-			const params = findGetTranscriptEndpoint(ytInitialData);
-
-			if (params && typeof params === "string" && params.length > 50) {
-				return params;
-			} 
-		} catch (error) {
-			console.log("Failed to parse ytInitialData JSON:", error);
-		}
-
-		return null;
-	}
-
-	/**
-	 * Extracts visitor data from the page
-	 */
-	private extractVisitorData(htmlContent: string): string {
-		const visitorDataMatch =
-			htmlContent.match(VISITOR_DATA_REGEX_1) ||
-			htmlContent.match(VISITOR_DATA_REGEX_2);
-
-		if (visitorDataMatch) {
-			return visitorDataMatch[1];
-		}
-
-		return "Cgs5LXVQa0I1YnhHOCjZ7ZDDBjInCgJQTBIhEh0SGwsMDg8QERITFBUWFxgZGhscHR4fICEiIyQlJiAS";
-	}
-
-	/**
-	 * Parses video page and generates multiple transcript request combinations
-	 */
-	private parseVideoPageWithFallbacks(
-		htmlContent: string,
-		config?: TranscriptConfig
-	): VideoData {
-		// Extract title
-		const titleMatch = htmlContent.match(TITLE_META_REGEX);
-		const title = titleMatch ? titleMatch[1] : "";
-
-		// Extract video ID
-		const videoIdMatch = htmlContent.match(CANONICAL_URL_REGEX);
-		const videoId = videoIdMatch ? videoIdMatch[1].split("?v=")[1] : "";
-
-		// Extract visitor data
-		const visitorData = this.extractVisitorData(htmlContent);
-
-		// Try to extract params from page first
-		const pageParams = this.extractParamsFromPage(htmlContent);
-
-		// Generate alternative parameters
-		const generatedParams = this.generateAlternativeTranscriptParams(
-			videoId,
-			config?.lang || "en"
-		);
-
-		// Combine page params (if found) with generated ones
-		const allParams = pageParams ? [pageParams, ...generatedParams] : generatedParams;
-
-		const transcriptRequests = allParams.map((params) => {
-			const requestBody = {
-				context: {
-					client: {
-						clientName: "WEB",
-						clientVersion: "2.20250701.01.00",
-						hl: config?.lang || "en",
-						gl: config?.country || "US",
-						userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-						platform: "DESKTOP",
-						clientFormFactor: "UNKNOWN_FORM_FACTOR",
-						visitorData: visitorData,
-						deviceMake: "Microsoft",
-						deviceModel: "",
-						osName: "Windows",
-						osVersion: "10.0",
-						browserName: "Chrome",
-						browserVersion: "91.0.4472.124",
-						acceptHeader: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-						userInterfaceTheme: "USER_INTERFACE_THEME_LIGHT",
-						timeZone: "America/New_York",
-						utcOffsetMinutes: -240,
-						screenWidthPoints: 1920,
-						screenHeightPoints: 1080,
-						screenPixelDensity: 1,
-						screenDensityFloat: 1,
-						mainAppWebInfo: {
-							graftUrl: `https://www.youtube.com/watch?v=${videoId}`,
-							webDisplayMode: "WEB_DISPLAY_MODE_BROWSER",
-							isWebNativeShareAvailable: true,
-						},
-					},
-					user: {
-						lockedSafetyMode: false,
-					},
-					request: {
-						useSsl: true,
-						internalExperimentFlags: [],
-						consistencyTokenJars: [],
-					},
-					clickTracking: {
-						clickTrackingParams: "CBUQ040EGAgiEwi43tyvspyOAxUxa3oFHaiXLzM=",
-					},
-					adSignalsInfo: {
-						params: [
-							{ key: "dt", value: Date.now().toString() },
-							{ key: "flash", value: "0" },
-							{ key: "frm", value: "0" },
-							{ key: "u_tz", value: "-240" },
-							{ key: "u_his", value: "2" },
-							{ key: "u_h", value: "1080" },
-							{ key: "u_w", value: "1920" },
-							{ key: "u_ah", value: "1040" },
-							{ key: "u_aw", value: "1920" },
-							{ key: "u_cd", value: "24" },
-							{ key: "bc", value: "31" },
-							{ key: "bih", value: "1040" },
-							{ key: "biw", value: "1903" },
-							{ key: "brdim", value: "0,0,0,0,1920,0,1920,1040,1920,1040" },
-							{ key: "vis", value: "1" },
-							{ key: "wgl", value: "true" },
-							{ key: "ca_type", value: "image" },
-						],
-					},
-				},
-				externalVideoId: videoId,
-				params: params,
-			};
-
-			return {
-				url: "https://www.youtube.com/youtubei/v1/get_transcript?prettyPrint=false",
-				headers: {
-					"Content-Type": "application/json",
-					"Accept": "*/*",
-					"Accept-Language": "en-US,en;q=0.9",
-					"X-Youtube-Client-Name": "1",
-					"X-Youtube-Client-Version": "2.20250701.01.00",
-					"X-Goog-EOM-Visitor-Id": visitorData,
-					"X-Youtube-Bootstrap-Logged-In": "false",
-					"X-Origin": "https://www.youtube.com",
-				},
-				body: JSON.stringify(requestBody),
-			};
-		});
-
-		return {
-			title,
-			transcriptRequests,
-		};
-	}
-
-	/**
-	 * Parses the transcript JSON response into structured format
-	 */
-	private parseTranscript(responseContent: string): TranscriptLine[] {
-		try {
-			const response = JSON.parse(responseContent);
-
-			// Extract transcript from YouTube API response
-			const transcriptEvents =
-				response?.actions?.[0]?.updateEngagementPanelAction?.content
-					?.transcriptRenderer?.content?.transcriptSearchPanelRenderer?.body
-					?.transcriptSegmentListRenderer?.initialSegments;
-
-			if (!transcriptEvents || !Array.isArray(transcriptEvents)) {
-				return [];
-			}
-
-			return transcriptEvents.map((segment: any) => {
-				const cue = segment.transcriptSegmentRenderer;
-				if (!cue || !cue.snippet || !cue.startMs || !cue.endMs) {
-					return {
-						text: "",
-						duration: 0,
-						offset: 0,
-					};
-				}
-				return {
-					text: cue.snippet?.runs?.[0]?.text || "",
-					duration: parseInt(cue.endMs) - parseInt(cue.startMs),
-					offset: parseInt(cue.startMs),
-				};
-			});
-		} catch (error) {
-			throw new Error(`Failed to parse API response: ${error}`);
-		}
-	}
-
-	/**
 	 * Decodes HTML entities in a text string
 	 *
 	 * @param text - Text string with HTML entities
 	 * @returns Decoded text string
-	 * @example
-	 * const decodedText = this.decodeHTML('Hello &amp; World');
-	 * console.log(decodedText); // 'Hello & World'
 	 */
 	private decodeHTML(text: string): string {
 		return text
@@ -473,6 +367,10 @@ export class YouTubeService {
 			.replace(/&quot;/g, '"')
 			.replace(/&apos;/g, "'")
 			.replace(/&lt;/g, '<')
-			.replace(/&gt;/g, '>');
+			.replace(/&gt;/g, '>')
+			.replace(/&#(\d+);/g, (_, code) => String.fromCharCode(parseInt(code, 10)))
+			.replace(/\\n/g, ' ')
+			.replace(/\s+/g, ' ')
+			.trim();
 	}
 }
