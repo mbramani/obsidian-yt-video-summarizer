@@ -20,17 +20,53 @@ export class YouTubeService {
 	private static readonly INNERTUBE_API_KEY = "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8";
 	private static readonly INNERTUBE_PLAYER_URL = `https://www.youtube.com/youtubei/v1/player?key=${YouTubeService.INNERTUBE_API_KEY}`;
 
-	// Use ANDROID client like youtube-transcript-api does - it's less restricted
-	private static readonly INNERTUBE_CONTEXT = {
-		client: {
-			clientName: "ANDROID",
-			clientVersion: "19.09.37",
-			androidSdkVersion: 30,
-			hl: "en",
-			gl: "US",
-		}
-	};
+	/**
+	 * Default InnerTube client configuration.
+	 *
+	 * These values were last verified against YouTube's API on 2026-01-12.
+	 *
+	 * If requests start failing with 400/403 errors or unexpected behavior,
+	 * try updating to a newer Android client version / SDK level that the
+	 * official YouTube Android app currently uses, then:
+	 *  - Update DEFAULT_CLIENT_VERSION / DEFAULT_ANDROID_SDK_VERSION below, or
+	 *  - Call YouTubeService.configureClient(...) from your plugin settings.
+	 */
+	private static readonly DEFAULT_CLIENT_VERSION = "19.09.37";
+	private static readonly DEFAULT_ANDROID_SDK_VERSION = 30;
 
+	// Mutable copies that can be overridden at runtime if needed.
+	private static clientVersion: string = YouTubeService.DEFAULT_CLIENT_VERSION;
+	private static androidSdkVersion: number = YouTubeService.DEFAULT_ANDROID_SDK_VERSION;
+
+	/**
+	 * Configure the InnerTube client version and Android SDK version used for
+	 * YouTube API requests. This allows updating these values without changing
+	 * the source code if YouTube deprecates the pinned defaults.
+	 */
+	public static configureClient(options: {
+		clientVersion?: string;
+		androidSdkVersion?: number;
+	}): void {
+		if (typeof options.clientVersion === "string" && options.clientVersion.trim().length > 0) {
+			YouTubeService.clientVersion = options.clientVersion.trim();
+		}
+		if (typeof options.androidSdkVersion === "number" && Number.isInteger(options.androidSdkVersion)) {
+			YouTubeService.androidSdkVersion = options.androidSdkVersion;
+		}
+	}
+
+	// Use ANDROID client like youtube-transcript-api does - it's less restricted
+	private static get INNERTUBE_CONTEXT() {
+		return {
+			client: {
+				clientName: "ANDROID",
+				clientVersion: YouTubeService.clientVersion,
+				androidSdkVersion: YouTubeService.androidSdkVersion,
+				hl: "en",
+				gl: "US",
+			},
+		};
+	}
 	/**
 	 * Gets the thumbnail URL for a YouTube video
 	 * @param videoId - The YouTube video identifier
