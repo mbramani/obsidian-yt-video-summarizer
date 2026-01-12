@@ -16,7 +16,29 @@ import { requestUrl } from 'obsidian';
  * Uses the same approach as youtube-transcript-api (Python library).
  */
 export class YouTubeService {
-	// YouTube's public InnerTube API key
+	/**
+	 * YouTube's public InnerTube API key.
+	 *
+	 * IMPORTANT:
+	 * - This is a *public* key used by YouTube's own web/Android clients and by
+	 *   tools such as `youtube-transcript-api`. It is *not* tied to this
+	 *   project’s Google Cloud account and does not grant any additional
+	 *   privileges beyond what an anonymous YouTube client can do.
+	 * - Because this key is public and broadly distributed, it is expected to
+	 *   appear in source code and does **not** need to be treated as a secret,
+	 *   managed via environment variables, or rotated by this project.
+	 *
+	 * Rate limiting / usage:
+	 * - Requests made with this key are subject to YouTube's own internal
+	 *   throttling and abuse detection for anonymous clients. Very high
+	 *   volumes of requests may be rate limited or temporarily blocked by
+	 *   YouTube, outside the control of this plugin.
+	 * - If YouTube invalidates or changes this key in the future (e.g. 400/403
+	 *   responses that cannot be explained otherwise), the value here may need
+	 *   to be updated to a current public InnerTube key (for example by
+	 *   inspecting network traffic from the YouTube web/Android client or by
+	 *   checking updates in `youtube-transcript-api`).
+	 */
 	private static readonly INNERTUBE_API_KEY = "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8";
 	private static readonly INNERTUBE_PLAYER_URL = `https://www.youtube.com/youtubei/v1/player?key=${YouTubeService.INNERTUBE_API_KEY}`;
 
