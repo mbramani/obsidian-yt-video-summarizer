@@ -180,7 +180,16 @@ export class YouTubeService {
 			body: JSON.stringify(requestBody),
 		});
 
-		const data = JSON.parse(response.text);
+		let data: any;
+		try {
+			data = JSON.parse(response.text);
+		} catch (error) {
+			throw new Error(
+				`Failed to parse YouTube player data JSON: ${
+					error instanceof Error ? error.message : String(error)
+				}`,
+			);
+		}
 
 		// Check playability status
 		const playabilityStatus = data.playabilityStatus;
