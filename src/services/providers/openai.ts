@@ -43,7 +43,13 @@ export class OpenAIProvider implements AIModelProvider {
                 temperature: this.temperature
             });
 
-            return completion.choices[0]?.message?.content || '';
+            let text = completion.choices[0]?.message?.content || '';
+            
+            if (completion.choices[0]?.finish_reason === 'length') {
+                text += '\n\n[Summary truncated due to max token limit. Please increase "Max Tokens" in settings.]';
+            }
+
+            return text;
         } catch (error) {
             console.error('Error generating summary with OpenAI:', error);
             throw error;

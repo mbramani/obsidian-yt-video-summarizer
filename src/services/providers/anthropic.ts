@@ -46,7 +46,11 @@ export class AnthropicProvider implements AIModelProvider {
             });
 
             if (response.content[0].type === 'text') {
-                return response.content[0].text;
+                let text = response.content[0].text;
+                if (response.stop_reason === 'max_tokens') {
+                    text += '\n\n[Summary truncated due to max token limit. Please increase "Max Tokens" in settings.]';
+                }
+                return text;
             }
             throw new Error('Unexpected response type from Anthropic API');
         } catch (error) {

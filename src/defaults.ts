@@ -119,5 +119,5 @@ Create a concise yet comprehensive summary of the video based on the provided su
 
 Note: Include all sections. If there are no technical terms, omit that section entirely.`;
 
-export const DEFAULT_MAX_TOKENS = 4000;
+export const DEFAULT_MAX_TOKENS = 10000;
 export const DEFAULT_TEMPERATURE = 1;

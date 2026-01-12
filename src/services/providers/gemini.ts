@@ -42,7 +42,13 @@ export class GeminiProvider implements AIModelProvider {
         try {
             const result = await model.generateContent(prompt);
             const response = await result.response;
-            return response.text();
+            let text = response.text();
+            
+            if (response.candidates && response.candidates[0] && response.candidates[0].finishReason === 'MAX_TOKENS') {
+                text += '\n\n[Summary truncated due to max token limit. Please increase "Max Tokens" in settings.]';
+            }
+            
+            return text;
         } catch (error) {
             console.error('Error generating summary with Gemini:', error);
             throw error;
