@@ -1,4 +1,4 @@
-name: Build
+name: Lint
 
 on:
   push:
@@ -9,7 +9,7 @@ on:
       - main
 
 jobs:
-  build:
+  lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -19,5 +19,5 @@ jobs:
             node-version: '23'
       - name: Install dependencies
         run: yarn install
-      - name: Build
-        run: yarn build
+      - name: Lint
+        run: yarn lint

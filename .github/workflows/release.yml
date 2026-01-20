@@ -1,29 +1,29 @@
 name: Release
 
 on:
-  push:
+  workflow_run:
+    workflows: ["Test"]
+    types:
+      - completed
     branches:
       - main
-    paths-ignore:
-      - 'package.json'
-      - 'manifest.json'
-      - 'versions.json'
 
 permissions:
-  contents: write  # Required for creating releases, uploading assets, and pushing commits
+  contents: write
 
 jobs:
   build:
     if: |
+      github.event.workflow_run.conclusion == 'success' &&
       github.repository == 'mbramani/obsidian-yt-video-summarizer' &&
-      github.ref == 'refs/heads/main' &&
-      !contains(github.event.head_commit.message, 'chore: bump version') &&
-      !contains(github.event.head_commit.message, '[skip release]')
+      !contains(github.event.workflow_run.head_commit.message, 'chore: bump version') &&
+      !contains(github.event.workflow_run.head_commit.message, '[skip release]')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3  
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 0
+          ref: ${{ github.event.workflow_run.head_sha }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Node.js
@@ -32,7 +32,7 @@ jobs:
           node-version: '18'
 
       - name: Install dependencies
-        run: npm install
+        run: yarn install
 
       - name: Bump version
         id: bump
@@ -40,7 +40,11 @@ jobs:
           current_ver=$(node -p "require('./package.json').version")
           IFS='.' read -r major minor patch <<< "$current_ver"
 
-          commit_msg=$(git log -1 --pretty=%B)
+          
+          # Since workflow_run checkout might be detached, ensure we get the right commit message context if needed
+          # But actually we already checked head_commit.message in the 'if' condition. 
+          # For version bumping logic, we need to inspect the commit message of the specific SHA.
+          commit_msg="${{ github.event.workflow_run.head_commit.message }}"
 
           if echo "$commit_msg" | grep -q "^feat!:\|BREAKING CHANGE:"; then
             new_ver="$((major + 1)).0.0"
@@ -61,7 +65,7 @@ jobs:
           node version-bump.mjs
 
       - name: Build project
-        run: npm run build
+        run: yarn build
 
       - name: Create Tag
         run: |

@@ -2,26 +2,26 @@ import { StoredProvider } from './types';
 
 // List of supported Gemini models
 const DEFAULT_GEMINI_MODELS = [
-	{
-		name: 'gemini-2.5-pro',
-		displayName: 'Gemini 2.5 Pro'
-	},
-	{
-		name: 'gemini-2.5-flash',
-		displayName: 'Gemini 2.5 Flash'
-	},
-	{
-		name: 'gemini-2.5-flash-lite-preview-06-17',
-		displayName: 'Gemini 2.5 Flash-Lite Preview'
-	},
-	{
-		name: 'gemini-2.0-flash',
-		displayName: 'Gemini 2.0 Flash'
-	},
-	{
-		name: 'gemini-2.0-flash-lite',
-		displayName: 'Gemini 2.0 Flash-Lite'
-	}
+    {
+        name: 'gemini-2.5-pro',
+        displayName: 'Gemini 2.5 Pro'
+    },
+    {
+        name: 'gemini-2.5-flash',
+        displayName: 'Gemini 2.5 Flash'
+    },
+    {
+        name: 'gemini-2.5-flash-lite-preview-06-17',
+        displayName: 'Gemini 2.5 Flash-Lite Preview'
+    },
+    {
+        name: 'gemini-2.0-flash',
+        displayName: 'Gemini 2.0 Flash'
+    },
+    {
+        name: 'gemini-2.0-flash-lite',
+        displayName: 'Gemini 2.0 Flash-Lite'
+    }
 ];
 
 const DEFAULT_OPENAI_MODELS = [

@@ -5,8 +5,10 @@ import {
 	ThumbnailQuality,
 	TranscriptLine,
 	TranscriptResponse,
+
 } from 'src/types';
 import { requestUrl } from 'obsidian';
+import { VideoUnavailableError, TranscriptMissingError } from '../errors';
 
 /**
  * Service class for interacting with YouTube videos.
@@ -113,10 +115,13 @@ export class YouTubeService {
 	 * @returns True if the URL is a YouTube URL, false otherwise
 	 */
 	static isYouTubeUrl(url: string): boolean {
-		return (
-			url.startsWith('https://www.youtube.com/') ||
-			url.startsWith('https://youtu.be/')
-		);
+		// Basic check first
+		if (!url.startsWith('https://www.youtube.com/') && !url.startsWith('https://youtu.be/')) {
+			return false;
+		}
+		// Verify we can extract an ID
+		const match = url.match(VIDEO_ID_REGEX);
+		return !!match && !!match[1];
 	}
 
 	/**
@@ -143,23 +148,28 @@ export class YouTubeService {
 
 			// Step 1: Fetch player data to get caption tracks
 			const playerData = await this.fetchPlayerData(videoId);
-			
+
 			// Extract video metadata
-			const title = playerData.videoDetails?.title || 'Unknown';
+			const title = playerData.videoDetails?.title;
+
+			if (!title) {
+				throw new VideoUnavailableError('Video unavailable or private');
+			}
+
 			const author = playerData.videoDetails?.author || 'Unknown';
 			const channelId = playerData.videoDetails?.channelId || '';
 
 			// Step 2: Get caption tracks
 			const captionsData = playerData.captions?.playerCaptionsTracklistRenderer;
 			if (!captionsData || !captionsData.captionTracks) {
-				throw new Error('No captions available for this video');
+				throw new TranscriptMissingError('No captions available for this video');
 			}
 
 			// Step 3: Find the best matching caption track
 			const captionTrack = this.findCaptionTrack(captionsData.captionTracks, langCode);
 			if (!captionTrack) {
 				const availableLangs = captionsData.captionTracks.map((t: any) => t.languageCode).join(', ');
-				throw new Error(`No transcript found for language '${langCode}'. Available: ${availableLangs}`);
+				throw new TranscriptMissingError(`No transcript found for language '${langCode}'. Available: ${availableLangs}`);
 			}
 
 			console.log(`Found caption track: ${captionTrack.name?.runs?.[0]?.text || captionTrack.languageCode}`);
@@ -205,8 +215,7 @@ export class YouTubeService {
 			data = JSON.parse(response.text);
 		} catch (error) {
 			throw new Error(
-				`Failed to parse YouTube player data JSON: ${
-					error instanceof Error ? error.message : String(error)
+				`Failed to parse YouTube player data JSON: ${error instanceof Error ? error.message : String(error)
 				}`,
 			);
 		}
@@ -215,13 +224,13 @@ export class YouTubeService {
 		const playabilityStatus = data.playabilityStatus;
 		if (playabilityStatus) {
 			if (playabilityStatus.status === 'ERROR') {
-				throw new Error(playabilityStatus.reason || 'Video unavailable');
+				throw new VideoUnavailableError(playabilityStatus.reason || 'Video unavailable');
 			}
 			if (playabilityStatus.status === 'LOGIN_REQUIRED') {
-				throw new Error('This video requires login to view');
+				throw new VideoUnavailableError('This video requires login to view');
 			}
 			if (playabilityStatus.status === 'UNPLAYABLE') {
-				throw new Error(playabilityStatus.reason || 'Video is unplayable');
+				throw new VideoUnavailableError(playabilityStatus.reason || 'Video is unplayable');
 			}
 		}
 
@@ -278,20 +287,20 @@ export class YouTubeService {
 		// YouTube uses two different formats:
 		// Format 1: <text start="0.0" dur="1.54">Hey there</text>
 		// Format 2: <p t="1360" d="1680">Text here</p>
-		
+
 		// Try format 2 first (newer format with <p> tags, times in milliseconds)
 		// Match entire <p> tag without assuming attribute order
 		const pTagRegex = /<p\s+([^>]+)>([\s\S]*?)<\/p>/g;
 		let match;
-		
+
 		while ((match = pTagRegex.exec(xmlContent)) !== null) {
 			const attributes = match[1];
 			const content = match[2];
-			
+
 			// Extract t and d attributes independently
 			const tMatch = attributes.match(/\bt="(\d+)"/);
 			const dMatch = attributes.match(/\bd="(\d+)"/);
-			
+
 			if (tMatch && dMatch) {
 				const start = parseInt(tMatch[1]); // Already in milliseconds
 				const duration = parseInt(dMatch[1]);
@@ -311,15 +320,15 @@ export class YouTubeService {
 		if (lines.length === 0) {
 			// Match entire <text> tag without assuming attribute order
 			const textRegex = /<text\s+([^>]+)>([\s\S]*?)<\/text>/g;
-			
+
 			while ((match = textRegex.exec(xmlContent)) !== null) {
 				const attributes = match[1];
 				const content = match[2];
-				
+
 				// Extract start and dur attributes independently
 				const startMatch = attributes.match(/\bstart="([^"]+)"/);
 				const durMatch = attributes.match(/\bdur="([^"]+)"/);
-				
+
 				if (startMatch && durMatch) {
 					const start = parseFloat(startMatch[1]) * 1000; // Convert to milliseconds
 					const duration = parseFloat(durMatch[1]) * 1000;

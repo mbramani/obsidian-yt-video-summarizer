@@ -21,7 +21,6 @@ export class SettingsTab extends PluginSettingTab {
     constructor(app: App, private plugin: YouTubeSummarizerPlugin) {
         super(app, plugin);
         this.settings = plugin.settings;
-        const selectedModel = this.settings.getSelectedModel();
         this.uiComponents = new SettingsUIComponents(app);
 
         // Create callbacks for UI update

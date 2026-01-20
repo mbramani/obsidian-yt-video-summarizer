@@ -8,6 +8,7 @@ import { PromptService } from './services/prompt';
 import { SettingsManager } from './services/settingsManager';
 import { ProvidersFactory } from './services/providers/providersFactory';
 import { AIModelProvider } from './types';
+import { VideoUnavailableError, TranscriptMissingError } from './errors';
 
 /**
  * Represents the YouTube Summarizer Plugin.
@@ -201,7 +202,13 @@ export class YouTubeSummarizerPlugin extends Plugin {
 			editor.replaceSelection(content);
 			new Notice('Summary generated successfully!');
 		} catch (error) {
-			new Notice(`Error: ${error.message}`);
+			if (error instanceof VideoUnavailableError) {
+				new Notice(`❌ Video Issue: ${error.message}`);
+			} else if (error instanceof TranscriptMissingError) {
+				new Notice(`❌ Transcript Issue: ${error.message}`);
+			} else {
+				new Notice(`❌ Error: ${error.message}`);
+			}
 			console.error('Summary generation failed:', error);
 		} finally {
 			// Reset the processing flag

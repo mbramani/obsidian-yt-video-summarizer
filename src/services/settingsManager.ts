@@ -368,7 +368,7 @@ export class SettingsManager implements PluginSettings {
 
     public validateModelId(modelId: string): boolean {
         const { providerName, modelName } = this.parseModelId(modelId);
-        return this.settings.providers.some(p => p.name === providerName) 
+        return this.settings.providers.some(p => p.name === providerName)
             && this.settings.providers.some(p => p.models.some(m => m.name === modelName));
     }
 }
