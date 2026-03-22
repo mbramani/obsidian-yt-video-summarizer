@@ -77,7 +77,7 @@ export class YouTubeSummarizerPlugin extends Plugin {
 		// Command to summarize a YouTube video from URL
 		this.addCommand({
 			id: 'summarize-youtube-video',
-			name: 'Summarize youtube video',
+			name: 'Summarize youtube video/playlist',
 			editorCallback: async (editor: Editor, view: MarkdownView) => {
 				try {
 					const selectedText = editor.getSelection().trim();
@@ -87,7 +87,7 @@ export class YouTubeSummarizerPlugin extends Plugin {
 					) {
 						await this.summarizeVideo(selectedText, editor);
 					} else if (selectedText) {
-						new Notice('Selected text is not a valid YouTube URL');
+						new Notice('Selected text is not a valid YouTube URL or playlist');
 					} else {
 						new YouTubeURLModal(this.app, async (url) => {
 							await this.summarizeVideo(url, editor);
@@ -103,7 +103,7 @@ export class YouTubeSummarizerPlugin extends Plugin {
 		// Command to summarize a YouTube video with custom prompt
 		this.addCommand({
 			id: 'summarize-youtube-video-prompt',
-			name: 'Summarize youtube video (with prompt)',
+			name: 'Summarize youtube video/playlist (with prompt)',
 			editorCallback: async (editor: Editor, view: MarkdownView) => {
 				try {
 					const selectedText = editor.getSelection().trim();
@@ -113,7 +113,7 @@ export class YouTubeSummarizerPlugin extends Plugin {
 					) {
 						await this.summarizeVideo(selectedText, editor);
 					} else if (selectedText) {
-						new Notice('Selected text is not a valid YouTube URL');
+						new Notice('Selected text is not a valid YouTube URL or playlist');
 					} else {
 						new YouTubeURLModal(this.app, async (url) => {
 							await this.summarizeVideo(url, editor);

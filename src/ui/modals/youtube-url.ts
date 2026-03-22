@@ -34,7 +34,7 @@ export class YouTubeURLModal extends Modal {
 			// Input field for YouTube URL
 			const inputEl = modalEl.createEl('input', {
 				type: 'text',
-				placeholder: 'https://www.youtube.com/watch?v=...',
+				placeholder: 'https://www.youtube.com/watch?v=... or https://www.youtube.com/playlist?list=...',
 				cls: 'yt-summarizer__input',
 			});
 

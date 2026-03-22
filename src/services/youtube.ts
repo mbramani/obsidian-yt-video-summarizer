@@ -1,4 +1,5 @@
 import {
+	PLAYLIST_ID_REGEX,
 	VIDEO_ID_REGEX,
 } from 'src/constants';
 import {
@@ -39,6 +40,7 @@ export class YouTubeService {
 	 */
 	private static readonly INNERTUBE_API_KEY = "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8";
 	private static readonly INNERTUBE_PLAYER_URL = `https://www.youtube.com/youtubei/v1/player?key=${YouTubeService.INNERTUBE_API_KEY}`;
+	private static readonly YOUTUBE_BROWSE_URL = `https://www.youtube.com/youtubei/v1/browse?key=${YouTubeService.INNERTUBE_API_KEY}`;
 
 	/**
 	 * Default InnerTube client configuration.
@@ -120,6 +122,15 @@ export class YouTubeService {
 	}
 
 	/**
+	 * Checks if a URL is a YouTube playlist URL.
+	 * @param url - The URL to check
+	 * @returns True if URL contains a playlist identifier
+	 */
+	static isPlaylistUrl(url: string): boolean {
+		return YouTubeService.isYouTubeUrl(url) && PLAYLIST_ID_REGEX.test(url);
+	}
+
+	/**
 	 * Fetches and processes a YouTube video transcript using the player API approach
 	 * This mimics how youtube-transcript-api (Python) works:
 	 * 1. Fetch player data with ANDROID client to get caption tracks
@@ -135,6 +146,10 @@ export class YouTubeService {
 		langCode = 'en'
 	): Promise<TranscriptResponse> {
 		try {
+			if (YouTubeService.isPlaylistUrl(url)) {
+				return await this.fetchPlaylistTranscript(url, langCode);
+			}
+
 			// Extract video ID from URL
 			const videoId = this.extractMatch(url, VIDEO_ID_REGEX);
 			if (!videoId) throw new Error('Invalid YouTube URL');
@@ -179,6 +194,163 @@ export class YouTubeService {
 		} catch (error: any) {
 			throw new Error(`Failed to fetch transcript: ${error.message}`);
 		}
+	}
+
+	/**
+	 * Fetches and combines transcripts for videos in a YouTube playlist.
+	 */
+	private async fetchPlaylistTranscript(url: string, langCode: string): Promise<TranscriptResponse> {
+		const playlistId = this.extractMatch(url, PLAYLIST_ID_REGEX);
+		if (!playlistId) {
+			throw new Error('Invalid YouTube playlist URL');
+		}
+
+		const playlistVideos = await this.fetchPlaylistVideos(playlistId);
+		if (playlistVideos.length === 0) {
+			throw new Error('No videos found in this playlist');
+		}
+
+		const allLines: TranscriptLine[] = [];
+		let firstProcessedVideoId = '';
+		let author = '';
+		let channelUrl = '';
+
+		for (const video of playlistVideos) {
+			const videoUrl = `https://www.youtube.com/watch?v=${video.videoId}`;
+			try {
+				const transcript = await this.fetchTranscript(videoUrl, langCode);
+				if (!firstProcessedVideoId) {
+					firstProcessedVideoId = transcript.videoId;
+					author = transcript.author;
+					channelUrl = transcript.channelUrl;
+				}
+				allLines.push(...transcript.lines);
+			} catch (error: any) {
+				console.warn(`Skipping playlist video ${video.videoId}: ${error?.message || error}`);
+			}
+		}
+
+		if (allLines.length === 0) {
+			throw new Error('No transcripts available for videos in this playlist');
+		}
+
+		return {
+			url,
+			videoId: firstProcessedVideoId || playlistId,
+			title: this.decodeHTML(playlistVideos[0].playlistTitle || `Playlist ${playlistId}`),
+			author: author || 'Unknown',
+			channelUrl,
+			lines: allLines,
+		};
+	}
+
+	/**
+	 * Fetches videos in a playlist using YouTube InnerTube browse endpoint.
+	 */
+	private async fetchPlaylistVideos(
+		playlistId: string,
+		continuationToken: string | null = null,
+		collected: Array<{ videoId: string; playlistTitle: string }> = []
+	): Promise<Array<{ videoId: string; playlistTitle: string }>> {
+		const requestBody: any = continuationToken
+			? {
+				context: YouTubeService.INNERTUBE_CONTEXT,
+				continuation: continuationToken,
+			}
+			: {
+				context: YouTubeService.INNERTUBE_CONTEXT,
+				browseId: `VL${playlistId}`,
+			};
+
+		const response = await requestUrl({
+			url: YouTubeService.YOUTUBE_BROWSE_URL,
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				"User-Agent": `com.google.android.youtube/${YouTubeService.DEFAULT_CLIENT_VERSION} (Linux; U; Android 11) gzip`,
+			},
+			body: JSON.stringify(requestBody),
+		});
+
+		let data: any;
+		try {
+			data = JSON.parse(response.text);
+		} catch (error) {
+			throw new Error(
+				`Failed to parse YouTube playlist data JSON: ${
+					error instanceof Error ? error.message : String(error)
+				}`,
+			);
+		}
+
+		const contents = this.collectPlaylistContents(data);
+		const playlistTitle = this.extractPlaylistTitle(data);
+		for (const item of contents) {
+			const videoId = item?.playlistVideoRenderer?.videoId;
+			if (!videoId) continue;
+			if (!collected.some((v) => v.videoId === videoId)) {
+				collected.push({ videoId, playlistTitle });
+			}
+		}
+
+		const continuation = this.extractPlaylistContinuation(data);
+		if (continuation) {
+			return this.fetchPlaylistVideos(playlistId, continuation, collected);
+		}
+
+		return collected;
+	}
+
+	private collectPlaylistContents(data: any): any[] {
+		const sections =
+			data?.contents?.singleColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer?.content
+				?.sectionListRenderer?.contents
+			|| data?.onResponseReceivedActions?.[0]?.appendContinuationItemsAction?.continuationItems
+			|| [];
+
+		const items: any[] = [];
+		for (const section of sections) {
+			const contentItems =
+				section?.itemSectionRenderer?.contents?.[0]?.playlistVideoListRenderer?.contents
+				|| section?.playlistVideoListContinuation?.contents
+				|| section?.playlistVideoListRenderer?.contents
+				|| [];
+			items.push(...contentItems);
+		}
+
+		return items;
+	}
+
+	private extractPlaylistTitle(data: any): string {
+		return (
+			data?.header?.playlistHeaderRenderer?.title?.simpleText ||
+			data?.header?.playlistHeaderRenderer?.title?.runs?.[0]?.text ||
+			'YouTube Playlist'
+		);
+	}
+
+	private extractPlaylistContinuation(data: any): string | null {
+		const sections =
+			data?.contents?.singleColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer?.content
+				?.sectionListRenderer?.contents
+			|| data?.onResponseReceivedActions?.[0]?.appendContinuationItemsAction?.continuationItems
+			|| [];
+
+		for (const section of sections) {
+			const continuation =
+				section?.itemSectionRenderer?.contents?.[0]?.playlistVideoListRenderer?.contents
+					?.find((item: any) => item.continuationItemRenderer)?.continuationItemRenderer
+					?.continuationEndpoint?.continuationCommand?.token
+				|| section?.playlistVideoListContinuation?.contents
+					?.find((item: any) => item.continuationItemRenderer)?.continuationItemRenderer
+					?.continuationEndpoint?.continuationCommand?.token
+				|| section?.continuationItemRenderer?.continuationEndpoint?.continuationCommand?.token;
+			if (continuation) {
+				return continuation;
+			}
+		}
+
+		return null;
 	}
 
 	/**
