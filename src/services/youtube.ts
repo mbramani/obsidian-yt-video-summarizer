@@ -218,6 +218,7 @@ export class YouTubeService {
 		for (const video of playlistVideos) {
 			const videoUrl = `https://www.youtube.com/watch?v=${video.videoId}`;
 			try {
+				// This remains in the single-video path because videoUrl does not include `list=`.
 				const transcript = await this.fetchTranscript(videoUrl, langCode);
 				if (!firstProcessedVideoId) {
 					firstProcessedVideoId = transcript.videoId;
@@ -233,11 +234,12 @@ export class YouTubeService {
 		if (allLines.length === 0) {
 			throw new Error('No transcripts available for videos in this playlist');
 		}
+		const firstPlaylistVideo = playlistVideos[0];
 
 		return {
 			url,
-			videoId: firstProcessedVideoId || playlistId,
-			title: this.decodeHTML(playlistVideos[0].playlistTitle || `Playlist ${playlistId}`),
+			videoId: firstProcessedVideoId,
+			title: this.decodeHTML(firstPlaylistVideo?.playlistTitle || `Playlist ${playlistId}`),
 			author: author || 'Unknown',
 			channelUrl,
 			lines: allLines,
