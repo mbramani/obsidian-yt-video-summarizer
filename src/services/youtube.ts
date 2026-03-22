@@ -87,6 +87,28 @@ export class YouTubeService {
 			},
 		};
 	}
+
+	/**
+	 * Converts Android SDK API level to Android release string for User-Agent.
+	 * InnerTube client context uses SDK level, while User-Agent expects release.
+	 */
+	private static androidReleaseFromSdk(sdk: number): string {
+		switch (sdk) {
+		case 30:
+			return "11";
+		case 31:
+		case 32:
+			return "12";
+		case 33:
+			return "13";
+		case 34:
+			return "14";
+		case 35:
+			return "15";
+		default:
+			return String(sdk);
+		}
+	}
 	/**
 	 * Gets the thumbnail URL for a YouTube video
 	 * @param videoId - The YouTube video identifier
@@ -195,7 +217,7 @@ export class YouTubeService {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
-				"User-Agent": `com.google.android.youtube/${YouTubeService.clientVersion} (Linux; U; Android ${YouTubeService.androidSdkVersion}) gzip`,
+				"User-Agent": `com.google.android.youtube/${YouTubeService.clientVersion} (Linux; U; Android ${YouTubeService.androidReleaseFromSdk(YouTubeService.androidSdkVersion)}) gzip`,
 			},
 			body: JSON.stringify(requestBody),
 		});
