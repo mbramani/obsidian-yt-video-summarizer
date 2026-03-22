@@ -51,8 +51,8 @@ export class YouTubeService {
 	 *  - Update DEFAULT_CLIENT_VERSION / DEFAULT_ANDROID_SDK_VERSION below, or
 	 *  - Call YouTubeService.configureClient(...) from your plugin settings.
 	 */
-	private static readonly DEFAULT_CLIENT_VERSION = "19.09.37";
-	private static readonly DEFAULT_ANDROID_SDK_VERSION = 30;
+	private static readonly DEFAULT_CLIENT_VERSION = "20.10.38";
+	private static readonly DEFAULT_ANDROID_SDK_VERSION = 34;
 
 	// Mutable copies that can be overridden at runtime if needed.
 	private static clientVersion: string = YouTubeService.DEFAULT_CLIENT_VERSION;
@@ -195,10 +195,19 @@ export class YouTubeService {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
-				"User-Agent": `com.google.android.youtube/${YouTubeService.DEFAULT_CLIENT_VERSION} (Linux; U; Android 11) gzip`,
+				"User-Agent": `com.google.android.youtube/${YouTubeService.clientVersion} (Linux; U; Android ${YouTubeService.androidSdkVersion}) gzip`,
 			},
 			body: JSON.stringify(requestBody),
 		});
+
+		if (response.status < 200 || response.status >= 300) {
+			if (response.status === 400 || response.status === 403) {
+				throw new Error(
+					`YouTube API rejected the transcript request (status ${response.status}). Please try again later or update the InnerTube client version.`,
+				);
+			}
+			throw new Error(`YouTube API request failed with status ${response.status}`);
+		}
 
 		let data: any;
 		try {
@@ -264,6 +273,10 @@ export class YouTubeService {
 				"Accept-Language": "en-US,en;q=0.9",
 			},
 		});
+
+		if (response.status < 200 || response.status >= 300) {
+			throw new Error(`Transcript download failed with status ${response.status}`);
+		}
 
 		return this.parseTranscriptXml(response.text);
 	}
