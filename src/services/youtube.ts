@@ -51,8 +51,8 @@ export class YouTubeService {
 	 *  - Update DEFAULT_CLIENT_VERSION / DEFAULT_ANDROID_SDK_VERSION below, or
 	 *  - Call YouTubeService.configureClient(...) from your plugin settings.
 	 */
-	private static readonly DEFAULT_CLIENT_VERSION = "19.09.37";
-	private static readonly DEFAULT_ANDROID_SDK_VERSION = 30;
+	private static readonly DEFAULT_CLIENT_VERSION = "20.10.38";
+	private static readonly DEFAULT_ANDROID_SDK_VERSION = 34;
 
 	// Mutable copies that can be overridden at runtime if needed.
 	private static clientVersion: string = YouTubeService.DEFAULT_CLIENT_VERSION;
