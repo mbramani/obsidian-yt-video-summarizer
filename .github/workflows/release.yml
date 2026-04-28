@@ -1,118 +1,36 @@
-name: Release
+name: Release Plugin
 
 on:
   push:
-    branches:
-      - main
-    paths-ignore:
-      - 'package.json'
-      - 'manifest.json'
-      - 'versions.json'
+    tags:
+      - "*"
 
-permissions:
-  contents: write  # Required for creating releases, uploading assets, and pushing commits
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build:
-    if: |
-      github.repository == 'mbramani/obsidian-yt-video-summarizer' &&
-      github.ref == 'refs/heads/main' &&
-      !contains(github.event.head_commit.message, 'chore: bump version') &&
-      !contains(github.event.head_commit.message, '[skip release]')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3  
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 24
+        uses: actions/setup-node@v4
         with:
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          node-version: '24'
+          cache: 'npm'
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v3 
-        with:
-          node-version: '18'
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Bump version
-        id: bump
+      - name: Build
         run: |
-          current_ver=$(node -p "require('./package.json').version")
-          IFS='.' read -r major minor patch <<< "$current_ver"
-
-          commit_msg=$(git log -1 --pretty=%B)
-
-          if echo "$commit_msg" | grep -q "^feat!:\|BREAKING CHANGE:"; then
-            new_ver="$((major + 1)).0.0"
-          elif echo "$commit_msg" | grep -q "^feat:"; then
-            new_ver="$major.$((minor + 1)).0"
-          else
-            new_ver="$major.$minor.$((patch + 1))"
-          fi
-
-          echo "VERSION=$new_ver" >> $GITHUB_ENV
-          echo "version=$new_ver" >> $GITHUB_OUTPUT
-
-      - name: Update versions
-        env:
-          VERSION: ${{ env.VERSION }}
-        run: |
-          npm version $VERSION --no-git-tag-version
-          node version-bump.mjs
-
-      - name: Build project
-        run: npm run build
-
-      - name: Create Tag
-        run: |
-          git tag ${{ env.VERSION }}
-          git push origin ${{ env.VERSION }}
+          npm install
+          npm run build
 
       - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ env.VERSION }}
-          release_name: ${{ env.VERSION }}
-          draft: false
-          prerelease: false
-
-      - name: Upload main.js
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./main.js
-          asset_name: main.js
-          asset_content_type: text/javascript
-
-      - name: Upload manifest.json
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./manifest.json
-          asset_name: manifest.json
-          asset_content_type: application/json
-
-      - name: Upload styles.css
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./styles.css
-          asset_name: styles.css
-          asset_content_type: text/css
-
-      - name: Commit version updates
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add package.json manifest.json versions.json
-          git commit -m "chore: bump version to ${{ env.VERSION }}"
-          git push
+          files: |
+            main.js
+            manifest.json
+            styles.css
+          generate_release_notes: true
+          
