@@ -86,6 +86,7 @@ export class SettingsTab extends PluginSettingTab {
         // Display sections
         this.displayAIProvidersSection(aiProvidersContent);
         this.displaySummarySettingsSection(summarySettingsContent);
+        this.displaySponsorSection(containerEl);
     }
 
     private createTabButtons(tabList: HTMLElement): void {
@@ -211,6 +212,25 @@ export class SettingsTab extends PluginSettingTab {
                     .setValue(String(this.settings.getTemperature()))
                     .onChange(async (value) => {
                         await this.settings.updateTemperature(Number(value));
+                    })
+            );
+    }
+
+    private displaySponsorSection(containerEl: HTMLElement): void {
+        containerEl.createEl('hr');
+        const desc = document.createDocumentFragment();
+        desc.append(
+            'This plugin is free and maintained in my spare time. If it helps your workflow, consider supporting development.'
+        );
+        new Setting(containerEl)
+            .setName('Enjoying the plugin?')
+            .setDesc(desc)
+            .addButton(button =>
+                button
+                    .setButtonText('Sponsor this plugin')
+                    .setCta()
+                    .onClick(() => {
+                        open('https://github.com/sponsors/mbramani');
                     })
             );
     }
