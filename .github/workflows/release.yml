@@ -11,6 +11,10 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # CRITICAL FIX: Grant write permissions for the release
+    permissions:
+      contents: write
+      
     steps:
       - uses: actions/checkout@v4
 
