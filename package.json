@@ -7,13 +7,6 @@
 		"build": "tsc -noEmit -skipLibCheck && esbuild src/main.ts --bundle --external:obsidian --format=cjs --platform=node --outfile=main.js",
 		"version": "node -e \"let m=require('./manifest.json'); m.version=process.env.npm_package_version; require('fs').writeFileSync('./manifest.json', JSON.stringify(m, null, '\\t'))\""
 	},
-	"keywords": [
-		"obsidian",
-		"youtube",
-		"summarizer",
-		"gemini",
-		"ai"
-	],
 	"author": "Waghmare",
 	"license": "MIT",
 	"devDependencies": {
