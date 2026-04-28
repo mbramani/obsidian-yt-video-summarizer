@@ -1,23 +1,23 @@
-name: Build Check
-
+name: Build Plugin
 on:
-    pull_request:
-        branches:
-            - main
-
+  push:
+    branches: [ main ]
 jobs:
-    build:
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v2
-
-            - name: Setup Node.js
-              uses: actions/setup-node@v2
-              with:
-                  node-version: '23'
-
-            - name: Install dependencies
-              run: npm install
-
-            - name: Build project
-              run: npm run build 
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Use Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      - run: npm install
+      - run: npm run build
+      - name: Upload Build
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-output
+          path: |
+            main.js
+            manifest.json
+            styles.css
