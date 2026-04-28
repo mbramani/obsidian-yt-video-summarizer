@@ -4,6 +4,7 @@ import { PluginSettings, TranscriptResponse } from './types';
 import { SettingsTab } from './ui/settings';
 import { YouTubeService } from './services/youtube';
 import { YouTubeURLModal } from './ui/modals/youtube-url';
+import { CustomPromptModal } from './ui/modals/CustomPromptModal';
 import { PromptService } from './services/prompt';
 import { SettingsManager } from './services/settingsManager';
 import { ProvidersFactory } from './services/providers/providersFactory';
@@ -111,12 +112,16 @@ export class YouTubeSummarizerPlugin extends Plugin {
 						selectedText &&
 						YouTubeService.isYouTubeUrl(selectedText)
 					) {
-						await this.summarizeVideo(selectedText, editor);
+						new CustomPromptModal(this.app, async (customPrompt) => {
+							await this.summarizeVideo(selectedText, editor, customPrompt);
+						}).open();
 					} else if (selectedText) {
 						new Notice('Selected text is not a valid YouTube URL');
 					} else {
 						new YouTubeURLModal(this.app, async (url) => {
-							await this.summarizeVideo(url, editor);
+							new CustomPromptModal(this.app, async (customPrompt) => {
+								await this.summarizeVideo(url, editor, customPrompt);
+							}).open();
 						}).open();
 					}
 				} catch (error) {
@@ -133,7 +138,7 @@ export class YouTubeSummarizerPlugin extends Plugin {
 	 * @param view - The active markdown view where the summary will be inserted.
 	 * @returns {Promise<void>} A promise that resolves when the video is summarized.
 	 */
-	private async summarizeVideo(url: string, editor: Editor): Promise<void> {
+	private async summarizeVideo(url: string, editor: Editor, customPrompt?: string): Promise<void> {
 		// Check if a video is already being processed
 		if (this.isProcessing) {
 			new Notice('Already processing a video, please wait...');
@@ -177,7 +182,7 @@ export class YouTubeSummarizerPlugin extends Plugin {
 			);
 
 			//Build the prompt for LLM
-			const prompt = this.promptService.buildPrompt(transcript.lines.map((line) => line.text).join(' '));
+			const prompt = this.buildPrompt(transcript.lines.map((line) => line.text).join(' '), customPrompt);
 			// Generate the summary using the provider
 			new Notice('Generating summary...');
 			let summary: string;
@@ -185,7 +190,7 @@ export class YouTubeSummarizerPlugin extends Plugin {
 				summary = await this.provider.summarizeVideo(transcript.videoId, prompt);
 			} catch (error) {
 				new Notice(`Error: ${error.message}`);
-				console.error('Failed to fetch transcript:', error);
+				console.error('Failed to generate summary:', error);
 				return;
 			}
 
@@ -207,6 +212,17 @@ export class YouTubeSummarizerPlugin extends Plugin {
 			// Reset the processing flag
 			this.isProcessing = false;
 		}
+	}
+
+	private buildPrompt(transcriptText: string, customPrompt?: string): string {
+		if (!customPrompt || !customPrompt.trim()) {
+			return this.promptService.buildPrompt(transcriptText);
+		}
+
+		const promptService = new PromptService(
+			`${this.settings.getCustomPrompt()}\n\nAdditional instructions:\n${customPrompt.trim()}`
+		);
+		return promptService.buildPrompt(transcriptText);
 	}
 
 	/**

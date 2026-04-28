@@ -21,7 +21,6 @@ export class SettingsTab extends PluginSettingTab {
     constructor(app: App, private plugin: YouTubeSummarizerPlugin) {
         super(app, plugin);
         this.settings = plugin.settings;
-        const selectedModel = this.settings.getSelectedModel();
         this.uiComponents = new SettingsUIComponents(app);
 
         // Create callbacks for UI update
@@ -50,9 +49,10 @@ export class SettingsTab extends PluginSettingTab {
                 this.reload();
             },
             onActiveModelChanged: () => {
+                const selectedModel = this.settings.getSelectedModel();
                 this.uiComponents.updateModelDropdown(
                     this.getAvailableModels(),
-                    this.settings.getSelectedModel()?.name || null
+                    selectedModel ? this.buildModelId(selectedModel) : null
                 );
             }
         };
@@ -137,7 +137,7 @@ export class SettingsTab extends PluginSettingTab {
             });
 
         // Provider Accordions Container
-        const accordionsContainer = containerEl.createDiv({ cls: 'yt-summarizer-settings__provider-accordions' });
+        containerEl.createDiv({ cls: 'yt-summarizer-settings__provider-accordions' });
 
         // Create accordions for each provider
         this.settings.getProviders().forEach(provider => {

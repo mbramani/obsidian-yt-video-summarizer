@@ -13,7 +13,7 @@ export class SettingsManager implements PluginSettings {
         this.plugin = plugin;
         // loading default settings
         this.settings = {
-            providers: [...DEFAULT_PROVIDERS],
+            providers: this.cloneProviders(DEFAULT_PROVIDERS),
             selectedModelId: DEFAULT_SELECTED_MODEL,
             customPrompt: DEFAULT_PROMPT,
             maxTokens: DEFAULT_MAX_TOKENS,
@@ -36,7 +36,7 @@ export class SettingsManager implements PluginSettings {
             };
 
             // Create new format settings
-            const providers = [...DEFAULT_PROVIDERS];
+            const providers = this.cloneProviders(DEFAULT_PROVIDERS);
             // Update Gemini provider with the old API key
             const geminiProvider = providers.find(p => p.name === 'Gemini');
             if (geminiProvider) {
@@ -62,6 +62,11 @@ export class SettingsManager implements PluginSettings {
                 maxTokens: loaded?.settings.maxTokens ?? this.settings.maxTokens,
                 temperature: loaded?.settings.temperature ?? this.settings.temperature
             };
+        }
+
+        const syncedBuiltIns = this.syncBuiltInProviders();
+        if (syncedBuiltIns) {
+            await this.saveData();
         }
     }
 
@@ -133,7 +138,8 @@ export class SettingsManager implements PluginSettings {
 
         const storedModel: StoredModel = {
             name: model.name,
-            displayName: model.displayName || model.name
+            displayName: model.displayName || model.name,
+            pricing: model.pricing
         };
 
         if (!this.validateModel(storedModel, provider)) {
@@ -179,10 +185,11 @@ export class SettingsManager implements PluginSettings {
 
         const storedModel: StoredModel = {
             name: modelName,
-            displayName: modelDisplayName
+            displayName: modelDisplayName,
+            pricing: model.pricing
         };
 
-        if (!this.validateModel(storedModel, provider)) {
+        if (!this.validateModel(storedModel, provider, modelName)) {
             throw new Error('Invalid model configuration');
         }
 
@@ -227,7 +234,7 @@ export class SettingsManager implements PluginSettings {
         }
 
         // Если это была активная модель, сбросим выбор
-        if (this.settings.selectedModelId === modelName) {
+        if (this.settings.selectedModelId === this.makeModelId(providerName, modelName)) {
             this.settings.selectedModelId = null;
         }
 
@@ -304,7 +311,7 @@ export class SettingsManager implements PluginSettings {
         return true;
     }
 
-    private validateModel(model: StoredModel, provider: StoredProvider): boolean {
+    private validateModel(model: StoredModel, provider: StoredProvider, originalName?: string): boolean {
         // Check that the model has required fields
         if (!model.name || !model.displayName) {
             new Notice('Model validation failed: missing name or display name');
@@ -312,18 +319,11 @@ export class SettingsManager implements PluginSettings {
             return false;
         }
 
-        // При обновлении модели мы ищем существующую модель с тем же name
-        // Если такая модель найдена, это нормально - мы её и обновляем
-        // Если не найдена, проверяем что нет другой модели с таким же name
         const existingModel = provider.models.find(m => m.name === model.name);
-        if (!existingModel) {
-            // Это новая модель - проверяем уникальность name
-            const hasModelWithSameName = provider.models.some(m => m.name === model.name);
-            if (hasModelWithSameName) {
-                new Notice('Model validation failed: name must be unique within provider');
-                console.error('Model validation failed: name must be unique within provider', model);
-                return false;
-            }
+        if (existingModel && (!originalName || existingModel.name !== originalName)) {
+            new Notice('Model validation failed: name must be unique within provider');
+            console.error('Model validation failed: name must be unique within provider', model);
+            return false;
         }
 
         return true;
@@ -346,6 +346,7 @@ export class SettingsManager implements PluginSettings {
         return {
             name: model.name,
             displayName: model.displayName,
+            pricing: model.pricing,
             provider: {
                 name: provider.name,
                 type: provider.type,
@@ -366,9 +367,59 @@ export class SettingsManager implements PluginSettings {
         return `${provider}:${model}`;
     }
 
+    private cloneProviders(providers: StoredProvider[]): StoredProvider[] {
+        return providers.map(provider => ({
+            ...provider,
+            models: provider.models.map(model => ({ ...model }))
+        }));
+    }
+
+    private syncBuiltInProviders(): boolean {
+        let changed = false;
+
+        const defaultProviders = this.cloneProviders(DEFAULT_PROVIDERS).filter(provider => provider.isBuiltIn);
+        defaultProviders.forEach(defaultProvider => {
+            const existingProvider = this.settings.providers.find(
+                provider => provider.isBuiltIn && provider.name === defaultProvider.name && provider.type === defaultProvider.type
+            );
+
+            if (!existingProvider) {
+                this.settings.providers.push(defaultProvider);
+                changed = true;
+                return;
+            }
+
+            defaultProvider.models.forEach(defaultModel => {
+                const existingModel = existingProvider.models.find(model => model.name === defaultModel.name);
+                if (!existingModel) {
+                    existingProvider.models.push({ ...defaultModel });
+                    changed = true;
+                    return;
+                }
+
+                if (existingModel.pricing !== defaultModel.pricing) {
+                    existingModel.pricing = defaultModel.pricing;
+                    changed = true;
+                }
+
+                if (!existingModel.displayName) {
+                    existingModel.displayName = defaultModel.displayName;
+                    changed = true;
+                }
+            });
+        });
+
+        return changed;
+    }
+
     public validateModelId(modelId: string): boolean {
+        if (!modelId.includes(':')) {
+            return false;
+        }
+
         const { providerName, modelName } = this.parseModelId(modelId);
-        return this.settings.providers.some(p => p.name === providerName) 
-            && this.settings.providers.some(p => p.models.some(m => m.name === modelName));
+        return this.settings.providers.some(
+            p => p.name === providerName && p.models.some(m => m.name === modelName)
+        );
     }
 }
