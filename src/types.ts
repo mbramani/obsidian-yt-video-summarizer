@@ -17,6 +17,7 @@ export interface ProviderConfig extends BaseProvider {
 export interface ModelConfig {
 	name: string; // unique
 	displayName?: string;
+	pricing?: string;
 	provider: ProviderConfig;
 }
 
@@ -24,6 +25,7 @@ export interface ModelConfig {
 export interface StoredModel {
 	name: string;
 	displayName: string;
+	pricing?: string;
 }
 
 /** Stored provider configuration with associated models */

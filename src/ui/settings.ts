@@ -21,7 +21,6 @@ export class SettingsTab extends PluginSettingTab {
     constructor(app: App, private plugin: YouTubeSummarizerPlugin) {
         super(app, plugin);
         this.settings = plugin.settings;
-        const selectedModel = this.settings.getSelectedModel();
         this.uiComponents = new SettingsUIComponents(app);
 
         // Create callbacks for UI update
@@ -50,9 +49,10 @@ export class SettingsTab extends PluginSettingTab {
                 this.reload();
             },
             onActiveModelChanged: () => {
+                const selectedModel = this.settings.getSelectedModel();
                 this.uiComponents.updateModelDropdown(
                     this.getAvailableModels(),
-                    this.settings.getSelectedModel()?.name || null
+                    selectedModel ? this.buildModelId(selectedModel) : null
                 );
             }
         };
@@ -86,6 +86,7 @@ export class SettingsTab extends PluginSettingTab {
         // Display sections
         this.displayAIProvidersSection(aiProvidersContent);
         this.displaySummarySettingsSection(summarySettingsContent);
+        this.displaySponsorSection(containerEl);
     }
 
     private createTabButtons(tabList: HTMLElement): void {
@@ -137,7 +138,7 @@ export class SettingsTab extends PluginSettingTab {
             });
 
         // Provider Accordions Container
-        const accordionsContainer = containerEl.createDiv({ cls: 'yt-summarizer-settings__provider-accordions' });
+        containerEl.createDiv({ cls: 'yt-summarizer-settings__provider-accordions' });
 
         // Create accordions for each provider
         this.settings.getProviders().forEach(provider => {
@@ -211,6 +212,25 @@ export class SettingsTab extends PluginSettingTab {
                     .setValue(String(this.settings.getTemperature()))
                     .onChange(async (value) => {
                         await this.settings.updateTemperature(Number(value));
+                    })
+            );
+    }
+
+    private displaySponsorSection(containerEl: HTMLElement): void {
+        containerEl.createEl('hr');
+        const desc = document.createDocumentFragment();
+        desc.append(
+            'This plugin is free and maintained in my spare time. If it helps your workflow, consider supporting development.'
+        );
+        new Setting(containerEl)
+            .setName('Enjoying the plugin?')
+            .setDesc(desc)
+            .addButton(button =>
+                button
+                    .setButtonText('Sponsor this plugin')
+                    .setCta()
+                    .onClick(() => {
+                        open('https://github.com/sponsors/mbramani');
                     })
             );
     }

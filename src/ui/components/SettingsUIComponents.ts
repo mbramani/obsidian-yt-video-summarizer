@@ -18,7 +18,7 @@ export class SettingsUIComponents {
         const headerInfo = header.createDiv();
         headerInfo.addClass('yt-summarizer-settings__provider-info');
 
-        const titleEl = headerInfo.createEl('h3', { text: provider.name });
+        headerInfo.createEl('h3', { text: provider.name });
 
         // Right side of header - controls
         const headerControls = header.createDiv({ cls: 'yt-summarizer-settings__provider-controls' });
@@ -44,7 +44,7 @@ export class SettingsUIComponents {
         setIcon(iconEl, 'chevron-down');
 
         // Content section
-        const content = accordion.createDiv({ cls: 'yt-summarizer-settings__provider-content' });
+        accordion.createDiv({ cls: 'yt-summarizer-settings__provider-content' });
 
         return accordion;
     }
@@ -61,6 +61,10 @@ export class SettingsUIComponents {
         // Status indicator and name in the title
         const title = info.createDiv({ cls: 'setting-item-name' });
         title.createSpan({ text: model.displayName || model.name });
+        const pricing = this.formatPricing(model.pricing);
+        if (pricing) {
+            info.createDiv({ cls: 'setting-item-description', text: pricing });
+        }
 
         // Control container (right side)
         const control = modelItem.createDiv({ cls: 'setting-item-control' });
@@ -148,6 +152,17 @@ export class SettingsUIComponents {
         if (titleSpan) {
             titleSpan.textContent = model.displayName || model.name;
         }
+
+        const pricingEl = modelItem.querySelector('.setting-item-description');
+        const pricing = this.formatPricing(model.pricing);
+        if (pricingEl && pricing) {
+            pricingEl.textContent = pricing;
+        } else if (!pricingEl && pricing) {
+            const info = modelItem.querySelector('.setting-item-info');
+            info?.createDiv({ cls: 'setting-item-description', text: pricing });
+        } else if (pricingEl && !pricing) {
+            pricingEl.remove();
+        }
     }
 
     updateModelDropdown(models: ModelConfig[], selectedModel: string | null): void {
@@ -163,8 +178,12 @@ export class SettingsUIComponents {
         // Add new options
         models.forEach(model => {
             const option = document.createElement('option');
-            option.value = model.name;
-            option.text = `${model.provider.name} / ${model.displayName || model.name}`;
+            option.value = `${model.provider.name}:${model.name}`;
+            const modelLabel = model.displayName || model.name;
+            const pricing = this.formatPricing(model.pricing);
+            option.text = pricing
+                ? `${model.provider.name} / ${modelLabel} (${pricing})`
+                : `${model.provider.name} / ${modelLabel}`;
             dropdown.appendChild(option);
         });
 
@@ -226,7 +245,7 @@ export class SettingsUIComponents {
 
         // Add Models section
         const modelsSection = content.createDiv();
-        const modelsHeader = modelsSection.createEl('h4', {
+        modelsSection.createEl('h4', {
             text: 'Models',
             cls: 'yt-summarizer-settings__models-header'
         });
@@ -266,5 +285,9 @@ export class SettingsUIComponents {
         addModelButton.settingEl.addClass('yt-summarizer-settings__add-button');
 
         accordionsContainer.appendChild(accordion);
+    }
+
+    private formatPricing(pricing?: string): string {
+        return pricing?.trim() ?? '';
     }
 } 
