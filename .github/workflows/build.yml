@@ -2,15 +2,19 @@ name: Build Plugin
 on:
   push:
     branches: [ main ]
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Use Node.js
+      - name: Use Node.js 24
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
           cache: 'npm'
       - run: npm install
       - run: npm run build
@@ -22,5 +26,4 @@ jobs:
             main.js
             manifest.json
             styles.css
-
-
+            
