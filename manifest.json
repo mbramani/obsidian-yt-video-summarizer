@@ -1,10 +1,10 @@
 {
-	"id": "yt-video-summarizer",
-	"name": "YouTube Video Summarizer",
+	"id": "yt-summarizer-waghmare",
+	"name": "YouTube Video Summarizer (Waghmare Fork)",
+	"version": "1.2.1",
 	"minAppVersion": "0.15.0",
-	"version": "1.2.0",
-	"description": "Summarize YouTube videos using Gemini AI. Extract transcripts, generate summaries, and create structured notes.",
-	"author": "mbramani",
-	"authorUrl": "https://github.com/mbramani",
+	"description": "A maintained fork of the YouTube Video Summarizer. Extract transcripts and generate summaries using Gemini AI.",
+	"author": "Waghmare",
+	"authorUrl": "https://github.com/sujit-waghmare",
 	"isDesktopOnly": false
 }
