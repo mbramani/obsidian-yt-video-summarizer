@@ -1,6 +1,9 @@
 // Regex pattern for extracting video ID from YouTube URL
 export const VIDEO_ID_REGEX = /(?:v=|\/)([a-zA-Z0-9_-]{11})/;
 
+// Regex pattern for extracting playlist ID from YouTube URL
+export const PLAYLIST_ID_REGEX = /(?:list=)([a-zA-Z0-9_-]+)/;
+
 // Regex pattern for extracting ytInitialData from script tag
 export const YT_INITIAL_DATA_REGEX = /var ytInitialData\s*=\s*({[\s\S]+?});/;
 
@@ -12,4 +15,3 @@ export const YT_INITIAL_DATA_ALT_REGEX_3 = /"ytInitialData"\s*:\s*({[\s\S]+?})/;
 // Regex patterns for extracting visitorData
 export const VISITOR_DATA_REGEX_1 = /"visitorData"\s*:\s*"([^"]+)"/;
 export const VISITOR_DATA_REGEX_2 = /visitorData['"]\s*:\s*['"]([^"']+)['"]/;
-

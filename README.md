@@ -99,9 +99,9 @@ Model pricing is displayed in the settings UI — next to each model in the prov
 
 ### Method 1: Command Palette
 
-1. Copy YouTube URL
+1. Copy YouTube video or playlist URL
 2. Open command palette (`Ctrl/Cmd + P`)
-3. Search for "Summarize YouTube Video"
+3. Search for "Summarize youtube video/playlist"
 4. Paste URL when prompted
 
 ### Method 2: Selection
@@ -146,4 +146,3 @@ Your support helps maintain the plugin, fix bugs, improve documentation, and add
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
